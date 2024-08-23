@@ -6,3 +6,4 @@
 *.pyc
 *.pyo
 logs/
+dataset/
