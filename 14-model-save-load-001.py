@@ -1,8 +1,4 @@
-
-
-
 import os
-
 import json
 import numpy
 import requests
@@ -15,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import datasets, models
 from torchvision import transforms
-# import matplotlib.pyplot as plt
+# import matplotlib.plot as plt
 from PIL import Image
 import matplotlib.pyplot as plt
 
