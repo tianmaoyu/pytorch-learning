@@ -29,6 +29,7 @@ preprocess = transforms.Compose([
 ])
 input_image = Image.open("data/test.jpg")
 
+
 input_tensor = preprocess(input_image)
 input_tensor = input_tensor.reshape(1, *input_tensor.shape)
 
