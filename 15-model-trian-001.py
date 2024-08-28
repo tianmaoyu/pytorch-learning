@@ -53,3 +53,5 @@ for epoch in range(20):
             writer.add_scalar("lose-2",result_loss.item(),step)
             print(result_loss)
 
+        if step % 1000 == 0:
+            torch.save(model,"./dataset/my-cfa10-model.pth")
