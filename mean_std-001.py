@@ -1,5 +1,6 @@
 from PIL import Image
 import numpy as np
+import torch
 
 def calculate_mean_std_v2(image_path):
     image = Image.open(image_path)
@@ -18,8 +19,6 @@ def calculate_mean_std_v2(image_path):
     mean=np.array([R_mean,G_mean,B_mean])
     std=np.array([R_std,G_std,B_std])
     print(mean,std)
-
-    import torch
 
     mean=torch.from_numpy(mean)
     probabilities = torch.nn.functional.softmax(mean, dim=0)
