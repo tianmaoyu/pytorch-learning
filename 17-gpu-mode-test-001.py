@@ -1,12 +1,12 @@
+import os
+
 import torch
 import torchvision
 from PIL import Image
-# from tensorboard import summary
 from torch import nn
 from torch.utils.data import DataLoader
-# from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
-
+import torch.nn.functional as F
 class DemoModule(nn.Module):
     def __init__(self):
         super().__init__()
@@ -26,13 +26,23 @@ class DemoModule(nn.Module):
         output = self.module1(image)
         return output
 
+dataset = torchvision.datasets.CIFAR10("./dataset", train=True, download=True, transform=transforms.ToTensor())
 
-# device=torch.device("gpu:0")
-loss = nn.CrossEntropyLoss()
-model = DemoModule()
+model = torch.load("./dataset/my-model-99.pth",map_location=torch.device('cpu'))
 
-input_image = Image.open("data/test.jpg")
+image = Image.open("data/test.jpg")
+
+preprocess=transforms.Compose([
+transforms.Resize((32,32)),
+transforms.ToTensor(),
+])
+image = preprocess(image)
+
+image=torch.reshape(image,(1,3,32,32))
 
 
-input_tensor = preprocess(input_image)
-input_tensor = input_tensor.reshape(1, *input_tensor.shape)
+with torch.no_grad():
+    output= model(image)
+
+print(output)
+print(dataset.class_to_idx)
