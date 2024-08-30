@@ -39,22 +39,71 @@ class DemoDataset(Dataset):
         return image, mask_image
 
 
+class WaterDataset(Dataset):
+    def __init__(self, path):
+        super().__init__()
+        self.path = path
+        self.mask_path_list = []
+        self.image_path_list = []
 
-def  coyp_image(path:str):
+        self.mask_path = os.path.join(path, 'Annotations')
+        self.image_path = os.path.join(path, 'JPEGImages')
+
+        for dir_name, _, file_names in os.walk(self.mask_path):
+            for file_name in file_names:
+                mask_path = os.path.join(dir_name, file_name)
+                image_path_jpg = mask_path.replace("Annotations", "JPEGImages").replace(".png", ".jpg")
+                image_path_png = mask_path.replace("Annotations", "JPEGImages")
+
+                if os.path.exists(image_path_jpg) :
+                    self.image_path_list.append(image_path_jpg)
+                    self.mask_path_list.append(mask_path)
+                elif os.path.exists(image_path_png) :
+                    self.image_path_list.append(image_path_png)
+                    self.mask_path_list.append(mask_path)
+                else:
+                    print(f"找不到图片： {image_path_png}  ｛image_path_jpg｝")
+
+
+
+    def __len__(self):
+        return len(self.mask_path_list)
+
+    def __getitem__(self, index) -> tuple[Tensor, Tensor]:
+        image_path = self.image_path_list[index]
+        image_mask_path = self.mask_path_list[index]
+
+        image = utils.keep_image_size(image_path)
+        mask_image = utils.keep_mask_image_size(image_mask_path)
+
+        image = transform(image)
+        mask_image = transform(mask_image)
+
+        return image, mask_image
+
+
+def copy_image(path: str):
     image_mask_path = os.path.join(path, 'SegmentationClass')
     image_name_list = os.listdir(image_mask_path)
     for image_name in image_name_list:
-        image_path = os.path.join(path, "JPEGImages",image_name.replace('png', 'jpg'))
-        destination_file_path=os.path.join(path,"seg-class-jpeg",image_name.replace('png', 'jpg'))
+        image_path = os.path.join(path, "JPEGImages", image_name.replace('png', 'jpg'))
+        destination_file_path = os.path.join(path, "seg-class-jpeg", image_name.replace('png', 'jpg'))
         # 复制文件
         shutil.copy(image_path, destination_file_path)
 
 
-
-
 if __name__ == '__main__':
 
-    coyp_image(f"E:\语义分割\VOCdevkit\VOC2012")
+    writer = SummaryWriter("logs")
+    water_dataset= WaterDataset(f"E:\语义分割\water_v2\water_v2")
+    for i in range(10):
+        image, mask_image = water_dataset[i+2000]
+        writer.add_image("image1", image, i)
+        writer.add_image("mask_image1", mask_image, i)
+    writer.close()
+    exit(1)
+
+    copy_image(f"E:\语义分割\VOCdevkit\VOC2012")
     exit(1)
 
     dateset = DemoDataset(f"E:\语义分割\VOCdevkit\VOC2012")
