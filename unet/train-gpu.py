@@ -18,6 +18,7 @@ optimizer= Adam(model.parameters(),0.001)
 
 for epoch in range(10):
     model.train()
+    total_loss=0
     for step, (images, mask_images) in enumerate(train_dataloader):
 
         images, mask_images = images.to(device), mask_images.to(device)
@@ -30,10 +31,13 @@ for epoch in range(10):
         loss_result.backward()
         optimizer.step()
 
+        total_loss+=loss_result.item()
         if step % 10 == 0:
             # writer.add_scalar("lose-2", result_loss.item(), step)
-            print(f" step {step},loss {loss_result.item()}")
+            print(f"epoch:{epoch} step: {step},loss: {loss_result.item()}")
 
+    print("---"*20)
+    print(f"第 {epoch} 轮 total_loss:{total_loss}")
     torch.save(model,f"unet-{epoch}.pth")
 
 
