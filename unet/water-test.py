@@ -7,7 +7,8 @@ from torchvision.transforms import ToTensor
 
 from unet import utils
 
-model_path="./water/unet-43.pth"
+# https://modelscope.cn/my/mynotebook/preset
+model_path="./water/unet-61.pth"
 image_path="./water/DJI_20240423132515_0002_W.JPG"
 image= utils.keep_image_size(image_path)
 
@@ -19,6 +20,6 @@ with torch.no_grad():
     image= image.unsqueeze(dim=0)
 
     output= model(image)
-    torchvision.utils.save_image(output,fp="./water/test-43.jpg")
+    torchvision.utils.save_image(output,fp="./water/test-61.jpg")
 
 
