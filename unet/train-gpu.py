@@ -1,3 +1,4 @@
+import torch
 from  torch.optim  import *
 from  torch import  nn
 from torch.utils.data import DataLoader
@@ -5,18 +6,21 @@ from torch.utils.data import DataLoader
 from unet.data import DemoDataset
 from unet.net import UnetDemo
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 dataset= DemoDataset(f"E:\语义分割\VOCdevkit\VOC2012")
 train_dataloader=DataLoader(dataset=dataset,batch_size=12)
 
-model = UnetDemo(3, 1)
+model = UnetDemo(3, 1).to(device)
+loss=nn.BCELoss().to(device)
 
-loss=nn.BCELoss()
 optimizer= Adam(model.parameters(),0.001)
 
-for epoch in range(1000):
+for epoch in range(10):
     model.train()
-    step=0
-    for images,mask_images in train_dataloader:
+    for step, (images, mask_images) in enumerate(train_dataloader):
+
+        images, mask_images = images.to(device), mask_images.to(device)
 
         model_result=model(images)
 
@@ -26,11 +30,11 @@ for epoch in range(1000):
         loss_result.backward()
         optimizer.step()
 
-        if step % 100 == 0:
+        if step % 10 == 0:
             # writer.add_scalar("lose-2", result_loss.item(), step)
             print(f" step {step},loss {loss_result.item()}")
 
-
+    torch.save(model,f"unet-{epoch}.pth")
 
 
 

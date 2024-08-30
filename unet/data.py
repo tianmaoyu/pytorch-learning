@@ -1,9 +1,11 @@
 import os
+
+from fontTools.misc.cython import returns
 from functorch.dim import Tensor
 from torch.utils.data import Dataset
 from torch.utils.tensorboard import SummaryWriter
 from torchvision import transforms
-
+import shutil
 import utils
 
 transform = transforms.Compose([
@@ -37,7 +39,24 @@ class DemoDataset(Dataset):
         return image, mask_image
 
 
+
+def  coyp_image(path:str):
+    image_mask_path = os.path.join(path, 'SegmentationClass')
+    image_name_list = os.listdir(image_mask_path)
+    for image_name in image_name_list:
+        image_path = os.path.join(path, "JPEGImages",image_name.replace('png', 'jpg'))
+        destination_file_path=os.path.join(path,"seg-class-jpeg",image_name.replace('png', 'jpg'))
+        # 复制文件
+        shutil.copy(image_path, destination_file_path)
+
+
+
+
 if __name__ == '__main__':
+
+    coyp_image(f"E:\语义分割\VOCdevkit\VOC2012")
+    exit(1)
+
     dateset = DemoDataset(f"E:\语义分割\VOCdevkit\VOC2012")
     # image,mask_image=dateset[0]
     writer = SummaryWriter("logs")

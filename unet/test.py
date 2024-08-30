@@ -1,12 +1,24 @@
+import PIL.ImageShow
 import torch
+import torchvision.utils
 from torch import nn
+from  PIL import  Image
+from torchvision.transforms import ToTensor
 
-conv= nn.Conv2d(3 ,30 ,kernel_size=3 ,padding=1 ,padding_mode="reflect" ,bias=False)
-input_data= torch.rand(1,3,100,100)
-output_data=conv(input_data)
-print(output_data.shape)
+from unet import utils
 
-pool= nn.MaxPool2d(kernel_size=2,stride=2)
+model_path="./dataset/unet-33.pth"
+image_path="./dataset/000033.jpg"
+image= utils.keep_image_size(image_path)
 
-output_data=pool(output_data)
-print(output_data.shape)
+model= torch.load(model_path,map_location="cpu",weights_only=False)
+
+with torch.no_grad():
+
+    image=ToTensor()(image)
+    image= image.unsqueeze(dim=0)
+
+    output= model(image)
+    torchvision.utils.save_image(output,fp="./out/000033-33.jpg")
+
+

@@ -7,3 +7,4 @@
 *.pyo
 logs/
 dataset/
+/unet/out/

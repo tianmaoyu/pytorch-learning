@@ -80,7 +80,7 @@ class UnetDemo(nn.Module):
         up1 = self.up1(dec2)
         cat1 = torch.cat((up1, encode1), dim=1)
         dec1 = self.decoder1(cat1)
-
+        # 如果是多 分类可以使用 其他函数 如交叉熵
         return  torch.sigmoid(self.final_conv(dec1))
 
 
