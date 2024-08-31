@@ -46,6 +46,11 @@ for epoch in range(10):
         if height * width > 1000_000:
             continue
 
+        if images.shape[1] > 3:
+            continue
+        if mask_images.shape[1] > 1:
+            continue
+
         model_result = model(images)
 
         loss_result = loss(model_result, mask_images)
