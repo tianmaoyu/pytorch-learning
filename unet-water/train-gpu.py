@@ -24,9 +24,22 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
+# 合并 两个datasets
+def merge_datasets(dataset1, dataset2):
+    # 合并两个数据集的图像和掩码路径列表
+    merged_image_paths = dataset1.image_path_list + dataset2.image_path_list
+    merged_mask_paths = dataset1.mask_path_list + dataset2.mask_path_list
+
+    # 使用合并后的路径列表创建一个新的数据集实例
+    new_dataset = WaterDataset(None)  # 传递None，因为我们不需要path属性
+    new_dataset.image_path_list = merged_image_paths
+    new_dataset.mask_path_list = merged_mask_paths
+
+    return new_dataset
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-dataset = WaterDataset(f"D:\迅雷下载\water_v2\water_v2")
+dataset = WaterDataset(f"D:\迅雷下载\water_v1\water_v1")
 train_dataloader = DataLoader(dataset=dataset, batch_size=1)
 
 model = UnetDemo(3, 1).to(device)

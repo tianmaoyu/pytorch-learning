@@ -1,8 +1,10 @@
 from PIL import Image
 import torch
 from tensorboard.summary.v1 import image
+from torch import Tensor, nn
 from torchvision import io
 import numpy as np
+from torchvision.transforms import functional
 
 
 def keep_image_size(path: str, size=(256, 256)) -> Image.Image:
@@ -20,6 +22,14 @@ def keep_mask_image_size(path: str, size=(256, 256)) -> Image.Image:
     mask.paste(img, (0, 0))
     mask = mask.resize(size)
     return mask
+
+def pad_16(image: Tensor) -> Tensor:
+    height, width = functional.get_image_size(image)
+    pad_height = (16 - height % 16) % 16
+    pad_width = (16 - width % 16) % 16
+    # 表示在上、下、左、右四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
+    pad_image = nn.functional.pad(image, (0, pad_height, 0, pad_width), mode='replicate')
+    return pad_image
 
 def show_image_memory_size(path: str):
     img = io.read_image(path)
