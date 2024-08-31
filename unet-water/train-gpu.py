@@ -2,7 +2,7 @@ import torch
 from torch.optim import *
 from torch import nn
 from torch.utils.data import DataLoader
-
+from torchvision.transforms import functional
 from data import WaterDataset
 from net import UnetDemo
 import logging
@@ -40,6 +40,11 @@ for epoch in range(10):
     for step, (images, mask_images) in enumerate(train_dataloader):
 
         images, mask_images = images.to(device), mask_images.to(device)
+
+        height, width = functional.get_image_size(images)
+
+        if height * width > 1000_000:
+            continue
 
         model_result = model(images)
 
