@@ -60,7 +60,7 @@ class WaterDataset(Dataset):
         image_path = self.image_path_list[index]
         image_mask_path = self.mask_path_list[index]
 
-        image = Image.open(image_path)
+        image = Image.open(image_path).convert("RGB")
         mask_image = Image.open(image_mask_path).convert("L")
 
         image = transform(image)
