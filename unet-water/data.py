@@ -18,6 +18,7 @@ transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
+
 # 填充数据
 def pad_16(image: Tensor) -> Tensor:
     height, width = functional.get_image_size(image)
@@ -60,42 +61,22 @@ class WaterDataset(Dataset):
         image_path = self.image_path_list[index]
         image_mask_path = self.mask_path_list[index]
 
-        image = Image.open(image_path).convert("RGB")
-        mask_image = Image.open(image_mask_path).convert("L")
+        try:
+            image = Image.open(image_path).convert("RGB")
+            mask_image = Image.open(image_mask_path).convert("L")
 
-        image = transform(image)
-        mask_image = transform(mask_image)
-        # 获取张量的形状
-        image_height, image_width = image.shape[-2:]
-        mask_height, mask_width = mask_image.shape[-2:]
+            image = transform(image)
+            mask_image = transform(mask_image)
+            # 获取张量的形状
+            image_height, image_width = image.shape[-2:]
+            mask_height, mask_width = mask_image.shape[-2:]
 
-        # 检查高度是否相等
-        if image_height != mask_height:
-            # 计算需要填充的高度差
-            height_diff = abs(image_height - mask_height)
-            # 确定谁更高，然后对较矮的那个进行填充
-            padding_top = height_diff // 2
-            padding_bottom = height_diff - padding_top
-            if image_height < mask_height:
-                image = pad(image, padding=(0, padding_top, 0, padding_bottom), fill=0, padding_mode='constant')
-            else:
-                mask_image = pad(mask_image, padding=(0, padding_top, 0, padding_bottom), fill=0,
-                                 padding_mode='constant')
+            return pad_16(image), pad_16(mask_image)
+        except:
+            print(f"数据错误: {image_path}")
+            return  torch.randn(0,1,1,1),torch.randn(0,1,1,1)
 
-        # 检查宽度是否相等
-        if image_width != mask_width:
-            # 计算需要填充的宽度差
-            width_diff = abs(image_width - mask_width)
-            # 确定谁更宽，然后对较窄的那个进行填充
-            padding_left = width_diff // 2
-            padding_right = width_diff - padding_left
-            if image_width < mask_width:
-                image = pad(image, padding=(padding_left, 0, padding_right, 0), fill=0, padding_mode='constant')
-            else:
-                mask_image = pad(mask_image, padding=(padding_left, 0, padding_right, 0), fill=0,
-                                 padding_mode='constant')
 
-        return pad_16(image), pad_16(mask_image)
 
 
 def copy_image(path: str):

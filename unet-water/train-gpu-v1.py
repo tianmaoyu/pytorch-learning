@@ -4,7 +4,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torchvision.transforms import functional
 from data import WaterDataset
-from net import UnetDemo
+from net_standard_v1 import  UnetDemoV1
 import logging
 
 # 设置日志的基本配置
@@ -31,7 +31,7 @@ def merge_datasets(dataset1, dataset2):
     merged_mask_paths = dataset1.mask_path_list + dataset2.mask_path_list
 
     # 使用合并后的路径列表创建一个新的数据集实例
-    new_dataset = WaterDataset(None)  # 传递None，因为我们不需要path属性
+    new_dataset = WaterDataset(f"D:\迅雷下载\water_v1\water_v1")  # 传递None，因为我们不需要path属性
     new_dataset.image_path_list = merged_image_paths
     new_dataset.mask_path_list = merged_mask_paths
 
@@ -40,14 +40,14 @@ def merge_datasets(dataset1, dataset2):
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-dataset1 = WaterDataset(f"D:\迅雷下载\water_v1\water_v1")
-dataset2 = WaterDataset(f"D:\迅雷下载\water_v2\water_v2")
+dataset1 = WaterDataset(f"E:\语义分割\water_v1\water_v1")
+dataset2 = WaterDataset(f"E:\语义分割\water_v2\water_v2")
 
 dataset=merge_datasets(dataset1,dataset2)
 
 train_dataloader = DataLoader(dataset=dataset, batch_size=1)
 
-model = UnetDemo(3, 1).to(device)
+model = UnetDemoV1(3, 1).to(device)
 loss = nn.BCELoss().to(device)
 
 optimizer = Adam(model.parameters(), 0.001)
@@ -57,10 +57,11 @@ for epoch in range(10):
     total_loss = 0
     for step, (images, mask_images) in enumerate(train_dataloader):
 
-
         images, mask_images = images.to(device), mask_images.to(device)
 
         height, width = functional.get_image_size(images)
+
+        functional.resize()
 
         if height * width > 1000_000:
             continue
@@ -79,10 +80,8 @@ for epoch in range(10):
         optimizer.step()
 
         total_loss += loss_result.item()
-        logger.info(f"epoch:{epoch} step: {step},loss: {loss_result.item()}")
-        # if step % 10 == 0:
-        #     # writer.add_scalar("lose-2", result_loss.item(), step)
-        #     logger.info(f"epoch:{epoch} step: {step},loss: {loss_result.item()}")
+        if step % 10 == 0:
+            logger.info(f"epoch:{epoch} step: {step},loss: {loss_result.item()}")
 
     logger.info("---" * 20)
     logger.info(f"第 {epoch} 轮 total_loss:{total_loss}")
