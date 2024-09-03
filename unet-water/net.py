@@ -87,6 +87,7 @@ class UnetDemo(nn.Module):
 if __name__ == '__main__':
     in_data = torch.randn(1, 3, 111, 555)
     # 防止
+
     in_data=data.pad_16(in_data)
     model = UnetDemo(3, 1)
     out_data = model(in_data)
