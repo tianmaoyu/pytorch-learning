@@ -3,34 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=True),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=True),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
-        )
-
-    def forward(self, x):
-        return self.conv(x)
-
-
-class DownSimple(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.layer = nn.Sequential(
-            nn.MaxPool2d(2),
-            DoubleConv(in_channels, out_channels),
-        )
-
-    def forward(self, x):
-        return self.layer(x)
-
-
 class conv_block_nested(nn.Module):
 
     def __init__(self, in_ch, mid_ch, out_ch):
