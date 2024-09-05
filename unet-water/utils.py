@@ -27,8 +27,8 @@ def pad_16(image: Tensor) -> Tensor:
     height, width = functional.get_image_size(image)
     pad_height = (16 - height % 16) % 16
     pad_width = (16 - width % 16) % 16
-    # 表示在上、下、左、右四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
-    pad_image = nn.functional.pad(image, (0, pad_height, 0, pad_width), mode='replicate')
+    # 表示在左、右,上、下、四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
+    pad_image = nn.functional.pad(image, (0, pad_width , 0, pad_height), mode='reflect')
     return pad_image
 
 def show_image_memory_size(path: str):
