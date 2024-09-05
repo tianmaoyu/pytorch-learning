@@ -1,5 +1,6 @@
 import os
 
+import cv2
 import torch
 from torch import nn
 from torchvision.transforms import functional
@@ -13,11 +14,27 @@ import torch.nn
 # from torchvision import  transforms
 import shutil
 import utils
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
+# # 定义图像和掩码的变换
+# transform512 = A.Compose([
+#     A.LongestMaxSize(max_size=512),  # 调整图片大小，保持长宽比不变
+#     A.PadIfNeeded(min_height=512, min_width=512, border_mode=cv2.BORDER_CONSTANT, value=0, mask_value=0),
+#     # 填充图片到512x512
+#     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+#     ToTensorV2()
+# ])
+
+transform512 = transforms.Compose([
+    transforms.Resize(512),  # 保持长宽比，调整最短边为512像素
+    transforms.CenterCrop(512),  # 从中心裁剪512x512的图片
+    transforms.ToTensor()  # 转换成Tensor，方便后续处理
+])
 
 # 填充数据
 def pad_16(image: Tensor) -> Tensor:
@@ -76,6 +93,50 @@ class WaterDataset(Dataset):
             print(f"数据错误: {image_path}")
             return  torch.randn(0,1,1,1),torch.randn(0,1,1,1)
 
+
+class WaterDataset512(Dataset):
+    def __init__(self, path):
+        super().__init__()
+        self.path = path
+        self.mask_path_list = []
+        self.image_path_list = []
+
+        self.mask_path = os.path.join(path, 'Annotations')
+        self.image_path = os.path.join(path, 'JPEGImages')
+
+        for dir_name, _, file_names in os.walk(self.mask_path):
+            for file_name in file_names:
+                mask_path = os.path.join(dir_name, file_name)
+                image_path_jpg = mask_path.replace("Annotations", "JPEGImages").replace(".png", ".jpg")
+                image_path_png = mask_path.replace("Annotations", "JPEGImages")
+
+                if os.path.exists(image_path_jpg):
+                    self.image_path_list.append(image_path_jpg)
+                    self.mask_path_list.append(mask_path)
+                elif os.path.exists(image_path_png):
+                    self.image_path_list.append(image_path_png)
+                    self.mask_path_list.append(mask_path)
+                else:
+                    print(f"找不到图片： {image_path_png}  ｛image_path_jpg｝")
+
+    def __len__(self):
+        return len(self.mask_path_list)
+
+    def __getitem__(self, index) -> tuple[Tensor, Tensor]:
+        image_path = self.image_path_list[index]
+        image_mask_path = self.mask_path_list[index]
+
+        try:
+            image = Image.open(image_path).convert("RGB")
+            mask_image = Image.open(image_mask_path).convert("L")
+
+            image = transform512(image)
+            mask_image = transform512(mask_image)
+
+            return image, mask_image
+        except  Exception as e:
+            print(f"数据错误: {image_path},{e}")
+            return  torch.randn(0,1,1,1),torch.randn(0,1,1,1)
 
 
 

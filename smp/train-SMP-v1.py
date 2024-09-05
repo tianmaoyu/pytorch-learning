@@ -3,10 +3,10 @@ from torch.optim import *
 from torch import nn
 from torch.utils.data import DataLoader
 from torchvision.transforms import functional
-from data import WaterDataset
-from net_standard_v1 import  UnetDemoV1
-import logging
+from data import WaterDataset, WaterDataset512
 
+import logging
+import segmentation_models_pytorch as smp
 # 设置日志的基本配置
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -24,6 +24,7 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
+
 # 合并 两个datasets
 def merge_datasets(dataset1, dataset2):
     # 合并两个数据集的图像和掩码路径列表
@@ -31,23 +32,30 @@ def merge_datasets(dataset1, dataset2):
     merged_mask_paths = dataset1.mask_path_list + dataset2.mask_path_list
 
     # 使用合并后的路径列表创建一个新的数据集实例
-    new_dataset = WaterDataset(f"D:\迅雷下载\water_v1\water_v1")  # 传递None，因为我们不需要path属性
+    new_dataset = WaterDataset512(f"E:\语义分割\water_v1\water_v1")  # 传递None，因为我们不需要path属性
     new_dataset.image_path_list = merged_image_paths
     new_dataset.mask_path_list = merged_mask_paths
 
     return new_dataset
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+dataset1 = WaterDataset512(f"E:\语义分割\water_v1\water_v1")
+dataset2 = WaterDataset512(f"E:\语义分割\water_v2\water_v2")
 
-dataset1 = WaterDataset(f"E:\语义分割\water_v1\water_v1")
-dataset2 = WaterDataset(f"E:\语义分割\water_v2\water_v2")
-
-dataset=merge_datasets(dataset1,dataset2)
+dataset = merge_datasets(dataset1, dataset2)
 
 train_dataloader = DataLoader(dataset=dataset, batch_size=1)
 
-model = UnetDemoV1(3, 1).to(device)
+# model = UnetDemoV1(3, 1).to(device)
+model = smp.PSPNet(
+    encoder_name="resnet34",
+    encoder_weights="imagenet",
+    in_channels=3,
+    classes=1,
+    activation="sigmoid"
+).to(device)
 loss = nn.BCELoss().to(device)
 
 optimizer = Adam(model.parameters(), 0.001)
@@ -60,6 +68,9 @@ for epoch in range(10):
         images, mask_images = images.to(device), mask_images.to(device)
 
         height, width = functional.get_image_size(images)
+
+        if height==1 or width==1:
+            continue
 
         # functional.resize()
 
