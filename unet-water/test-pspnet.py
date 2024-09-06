@@ -8,8 +8,8 @@ import  utils
 from  net_standard_v2 import UNetV2
 
 
-model_path="./water/PSPNet-8.pth"
-image_path="./water/DJI_20240423132515_0002_W.JPG"
+model_path="./water/PSPNet-9.pth"
+image_path="./water/DJI_20240423132549_0005_W.JPG"
 
 image = Image.open(image_path).convert("RGB")
 model= torch.load(model_path,map_location="cpu")
@@ -24,7 +24,7 @@ with torch.no_grad():
     image = utils.pad_16(image)
     # image = image.to('cuda')
     output= model(image)
-    torchvision.utils.save_image(output,fp="./water/2-8.jpg")
+    torchvision.utils.save_image(output,fp="./water/5-9.jpg")
     print("---"*8)
 
 

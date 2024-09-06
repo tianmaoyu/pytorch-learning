@@ -24,7 +24,7 @@ def keep_mask_image_size(path: str, size=(256, 256)) -> Image.Image:
     return mask
 
 def pad_16(image: Tensor) -> Tensor:
-    height, width = functional.get_image_size(image)
+    width,height= functional.get_image_size(image)
     pad_height = (16 - height % 16) % 16
     pad_width = (16 - width % 16) % 16
     # 表示在左、右,上、下、四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
