@@ -81,15 +81,17 @@ class Accuracy(nn.Module):
     def __init__(self):
         super().__init__()
         self.mean_iou = MeanIoU(num_classes=2)
+        self.count=0
 
     def forward(self, preds: torch.Tensor, targets: torch.Tensor):
         predictions = (preds > 0.5).long()
         targets = targets.long()
-        mean_iou.update(predictions, targets)
-        return self.mean_iou.compute()
+        self.mean_iou.update(predictions, targets)
+        self.count+=1
+        return self.mean_iou.compute()/ self.count
 
     def compute(self):
-         return self.mean_iou.compute()
+         return self.mean_iou.compute()/ self.count
 
     def reset(self):
         self.mean_iou.reset()
