@@ -73,13 +73,14 @@ def find_image_test():
             print(f"...{mask_path}..")
 
 
-def preprocess_images():
+def preprocess_images(root_path):
+
+    print(f"water_v2  path:{root_path}")
     dir_name_list = [
         "aberlour", "auldgirth", "bewdley", "cockermouth",
         "dublin", "evesham-lock", "galway-city", "holmrook",
         "keswick_greta", "worcester"
     ]
-    root_path = r"E:\语义分割\water_v2\water_v2"
 
     for dir_name in dir_name_list:
         mask_root=os.path.join(root_path,"Annotations",dir_name)
@@ -95,7 +96,7 @@ def preprocess_images():
 
 
 
-# preprocess_images()
+# preprocess_images( r"E:\语义分割\water_v2\water_v2")
 
 
 
