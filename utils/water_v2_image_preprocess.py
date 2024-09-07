@@ -1,12 +1,11 @@
 import os
-import  shutil
+import shutil
 import re
 from typing import Any
 from datetime import datetime
 
 filename_pattern = r'(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})\.(png|jpe?g|gif)$'
 date_format = '%Y-%m-%d-%H-%M-%S'
-
 
 def match_date_in_path(file_path: str) -> datetime | None:
     try:
@@ -56,7 +55,6 @@ def copy_mask_image(mask_root:str,image_root:str):
 
     print(mask_image_list)
 
-
 def find_image_test():
     mask_root = r"E:\语义分割\water_v2\water_v2\Annotations\aberlour"
     image_root = r"E:\语义分割\water_v2\water_v2\JPEGImages\aberlour"
@@ -71,7 +69,6 @@ def find_image_test():
 
         if not os.path.exists(mask_path) and not  os.path.exists(mask_path_png):
             print(f"...{mask_path}..")
-
 
 def preprocess_images(root_path):
 
@@ -93,8 +90,6 @@ def preprocess_images(root_path):
 
     #需要删除的文件夹
     stream2_dir=r"Annotations\stream2\12_00_json"
-
-
 
 # preprocess_images( r"E:\语义分割\water_v2\water_v2")
 

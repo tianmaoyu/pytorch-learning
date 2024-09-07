@@ -14,7 +14,28 @@ def pad_16(image: Tensor) -> Tensor:
     # 表示在,左、右,上、下、四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
     pad_image = nn.functional.pad(image, (0, pad_width, 0, pad_height), mode='replicate')
     return pad_image
+def pad_32(image: Tensor) -> Tensor:
+    # 此处尺寸
+    width, height = functional.get_image_size(image)
+    pad_width = (32 - width % 32) % 32
+    pad_height = (32 - height % 32) % 32
+    # 表示在,左、右,上、下、四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
+    pad_image = nn.functional.pad(image, (0, pad_width, 0, pad_height), mode='replicate')
+    return pad_image
 
+def demo_unet():
+    model = smp.Unet(
+        encoder_name="resnet50",
+        encoder_weights="imagenet",
+        in_channels=3,
+        classes=1,
+        activation="sigmoid"
+    )
+    input = torch.randn(2, 3, 1000, 1000)
+    input = pad_32(input)
+    summary(model, input_data=input)
+    output = model(input)
+    print(output)
 
 def demo_DeepLabV3Plus():
     model = smp.DeepLabV3Plus(
@@ -58,4 +79,4 @@ def demo_UNetV2():
     print(output)
 
 # demo_UNetV2()
-demo_PSPNet_01()
+demo_unet()
