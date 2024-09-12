@@ -44,6 +44,8 @@ def draw_polygon_on_image(point_list, image_width=4000, image_height=3000):
             point=(x*image_width,y*image_height)
             new_point_list.append(point)
         #todo outline ,size
+        # # 这里我们设置了轮廓颜色为红色，并且轮廓线宽度为 5
+        # draw.polygon(xy, fill='blue', outline='red', width=5)
         draw.polygon(new_point_list, fill=255)
 
     return img

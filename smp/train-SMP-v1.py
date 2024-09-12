@@ -57,7 +57,8 @@ model = smp.PSPNet(
     activation="sigmoid"
 ).to(device)
 loss = nn.BCELoss().to(device)
-
+# loss = smp.losses.DiceLoss(mode="binary")
+# smp.metrics.iou_score()
 optimizer = Adam(model.parameters(), 0.001)
 
 for epoch in range(10):

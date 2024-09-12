@@ -22,7 +22,7 @@ def resize_image(image_path, output_path,scale_factor=0.25):
     new_width = int(original_width * scale_factor)
     new_height = int(original_height * scale_factor)
 
-    # 缩放图像
+    # 缩放图像,建议双线性插值
     resized_image = original_image.resize((new_width, new_height), resample=Image.LANCZOS)
 
     # 保存结果
@@ -33,8 +33,8 @@ def resize_image(image_path, output_path,scale_factor=0.25):
 
 
 def preprocess_images(root_path: str):
-    image_root = os.path.join(root_path, "masks")
-    resize_root = os.path.join(root_path, "resize_masks")
+    image_root = os.path.join(root_path, "images")
+    resize_root = os.path.join(root_path, "resize_images")
 
     if not os.path.exists(resize_root):
         os.mkdir(resize_root)
