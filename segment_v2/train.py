@@ -111,7 +111,7 @@ for epoch in range(20):
             mean_iou.update(predictions, targets.long())
 
         logger.info("---" * 20)
-        logger.info(f"第 {epoch}  Mean IoU: {mean_iou.compute().item()/len(val_dataloader)}")
+        logger.info(f"第 {epoch}  Mean IoU: {mean_iou.compute().item()/len(val_dataloader)} total_loss :{total_loss}")
         mean_iou.reset()
         torch.save(model, f"unet-{epoch}.pth")
 
