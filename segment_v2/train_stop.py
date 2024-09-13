@@ -25,23 +25,23 @@ class TrainStop:
 
 
 if __name__ == '__main__':
-    from tqdm import tqdm
-    import time
-    # 假设我们有一个很长的任务列表
-    tasks = range(100)
-    pbar= tqdm(tasks)
-    # 使用tqdm创建一个进度条
-    for i in pbar:
-        # 在循环中输出日志信息
-        time.sleep(0.1)
-        # pbar.set_description(f"任务{i}: 正在处理...")
-        pbar.set_postfix_str(f"任务{i}: 正在处理...")
+    # from tqdm import tqdm
+    # import time
+    # # 假设我们有一个很长的任务列表
+    # tasks = range(100)
+    # pbar= tqdm(tasks)
+    # # 使用tqdm创建一个进度条
+    # for i in pbar:
+    #     # 在循环中输出日志信息
+    #     time.sleep(0.1)
+    #     # pbar.set_description(f"任务{i}: 正在处理...")
+    #     pbar.set_postfix_str(f"任务{i}: 正在处理...")
 
-    # test_list = [1, 2, 3, 3, 3,3, 3, 2, 3, 8, 5, 5, 1, 1,1]
-    #
-    # train_stop=TrainStop(3)
-    # for score in test_list:
-    #     is_stop = train_stop(score)
-    #     print(f"score: {train_stop.score_list}")
-    #     if is_stop:
-    #         print(f"stop: {train_stop.best}")
+    test_list = [0.041247116194831 , 0.25425845605355724 , 0.2501384417215983 , 0.15733252631293404, 0.22514749456334998 ,0.21357075373331705 , 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1,0.1]
+
+    train_stop=TrainStop(3)
+    for score in test_list:
+        is_stop = train_stop(score)
+        print(f"score: {train_stop.score_list}")
+        if is_stop:
+            print(f"stop: {train_stop.best}")

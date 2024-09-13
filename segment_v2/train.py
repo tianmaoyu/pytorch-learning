@@ -1,12 +1,13 @@
 import torch
 from torch.optim import *
 from torch import nn
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
-from torchvision.transforms import functional, transforms
+from torchvision.transforms import functional, transforms, ToPILImage
 from data import WaterDataset
 import logging
 from torchmetrics.segmentation import MeanIoU
-from unet  import  Unet
+from unet import Unet
 
 
 # 训练停止条件，连续 多少次没有增长
@@ -21,17 +22,19 @@ class TrainStop:
         self.score_list.append(score)
         total = sum(self.score_list[-self.count:])
         # 最佳分数： 最后几次平均分
-        mean=total / self.count
-        if  mean > self.best:
+        mean = total / self.count
+        if mean > self.best:
             self.best = mean
 
         # 分数没有超过之前，已经 count 次，就停止
         if self.best > score:
             self.trigger_count += 1
-            if self.trigger_count > self.count+1:
+            if self.trigger_count > self.count + 1:
                 return True
 
         return False
+
+
 # 日志
 def config_logger(name="train"):
     # 设置日志的基本配置
@@ -53,18 +56,39 @@ def config_logger(name="train"):
     return logger
 
 
-# 合并 两个datasets
-def merge_datasets(dataset_1, dataset_2):
-    # 合并两个数据集的图像和掩码路径列表
-    merged_image_paths = dataset_1.image_path_list + dataset_2.image_path_list
-    merged_mask_paths = dataset_1.mask_path_list + dataset_2.mask_path_list
+# 合并datasets
+def merge_datasets(dataset_list):
+    image_path_list = []
+    mask_path_list = []
+    for dataset in dataset_list:
+        image_path_list = image_path_list + dataset.image_path_list
+        mask_path_list = mask_path_list + dataset.mask_path_list
 
-    # 使用合并后的路径列表创建一个新的数据集实例
-    new_dataset = WaterDataset(dataset_1.path)
-    new_dataset.image_path_list = merged_image_paths
-    new_dataset.mask_path_list = merged_mask_paths
+    new_dataset = WaterDataset(dataset_list[0].path)
+    new_dataset.image_path_list = image_path_list
+    new_dataset.mask_path_list = mask_path_list
 
     return new_dataset
+
+
+def show_images(dataloader,num=3):
+    to_pil_image = ToPILImage()
+    plt.figure()
+    for i in range(1,num*2,2):
+       imgs,masks=  dataloader.dataset[i]
+       plt.subplot(num, 2,i)
+       plt.imshow(to_pil_image(imgs))
+       plt.axis('off')
+
+       plt.subplot(num, 2, i+1)
+       plt.imshow(to_pil_image(masks))
+       plt.axis('off')
+
+    plt.tight_layout()  # 调整子图间距
+    plt.show()
+
+
+
 
 logger = config_logger()
 train_stop = TrainStop(count=3)
@@ -72,13 +96,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 dataset1 = WaterDataset(f"E:\语义分割\water_v1\water_v1")
 dataset2 = WaterDataset(f"E:\语义分割\water_v2\water_v2")
-dataset = merge_datasets(dataset1, dataset2)
+dataset3 = WaterDataset(f"D:\语义分割\水体标注\project-2-at-2024-09-06-17-48-376b4f93")
+# dataset4 = WaterDataset(f"D:\语义分割\water_v2")
+dataset = merge_datasets([dataset1, dataset2,dataset3])
 
+# 每次都生成一样
+generator = torch.Generator().manual_seed(666)
 total_length = len(dataset)
 var_length = int(total_length * 0.1)
-train_dataset, val_dataset = random_split(dataset, [total_length - var_length, var_length])
+train_dataset, val_dataset = random_split(dataset, [total_length - var_length, var_length],generator=generator)
 train_dataloader = DataLoader(dataset=train_dataset, batch_size=1)
 val_dataloader = DataLoader(dataset=val_dataset, batch_size=1)
+
+logger.info(f"训练数据: {len(train_dataloader)}  测试训练数据: {len(val_dataloader)} ")
+
+show_images(val_dataloader,5)
+
 
 
 model = Unet(3, 1).to(device)
