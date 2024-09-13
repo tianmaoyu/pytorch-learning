@@ -5,32 +5,11 @@ from torch import nn
 from  PIL import  Image
 from torchvision.transforms import ToTensor
 import  utils
-
-# 退出条件，三次小于最佳的均值，
-test_list=[1,2,3,5,6,10.9,7,8,8,8,5,5,6,5]
-list=[0]
-less_count=0
-best=0
-for item in test_list:
-    total= sum(list[-3:])
-    if total> best:
-        best= total
-    if best/3 <= item:
-        print(list)
-        print("继续")
-        list.append(item)
-        print(list)
-    else:
-        less_count+=1
-        if(less_count>3):
-            print("退出")
-            break
-        print(list)
+from  unet import  Unet,DoubleConv,DownSimple,UpSimple
 
 
-
-model_path="./src/PSPNet-8.pth"
-image_path="./src/DJI_20240423132515_0002_W.JPG"
+model_path="./src/unet-9.pth"
+image_path="./src/DJI_20240423132549_0005_W.JPG"
 
 image = Image.open(image_path).convert("RGB")
 model= torch.load(model_path,map_location="cpu")
@@ -45,7 +24,7 @@ with torch.no_grad():
     image = utils.pad_16(image)
     # image = image.to('cuda')
     output= model(image)
-    torchvision.utils.save_image(output,fp="./water/2-8.jpg")
+    torchvision.utils.save_image(output,fp="./src/5-9.jpg")
     print("---"*8)
 
 
