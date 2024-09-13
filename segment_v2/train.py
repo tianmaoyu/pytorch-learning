@@ -90,6 +90,7 @@ for epoch in range(20):
     # 训练
     model.train()
     total_loss = 0
+    mean_iou.reset()
     for step, (images, mask_images) in enumerate(train_dataloader):
         # todo 返回 None,或者 这句话写到下面 -会还是对图片进行 采集，会出现一个问题
         images, mask_images = images.to(device), mask_images.to(device)
@@ -120,6 +121,7 @@ for epoch in range(20):
 
     # 验证
     model.eval()
+    mean_iou.reset()
     var_mean_iou = 0
     with torch.no_grad():
         for images, targets in val_dataloader:
@@ -133,9 +135,9 @@ for epoch in range(20):
         logger.info("---" * 20)
         var_mean_iou = mean_iou.compute().item() / len(val_dataloader)
         logger.info(f"第epoch: {epoch}  Var Mean IoU: {var_mean_iou} total_loss :{total_loss}")
-        mean_iou.reset()
-        torch.save(model, f"unet-{epoch}.pth")
 
+    torch.save(model, f"unet-{epoch}.pth")
+    logger.info(f"模型已经保存：unet-{epoch}.pth")
     # 是否停止
     is_stop = train_stop(var_mean_iou)
     if is_stop:
