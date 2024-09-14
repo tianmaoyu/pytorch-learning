@@ -125,7 +125,7 @@ loss = nn.BCELoss().to(device)
 optimizer = Adam(model.parameters(), 0.001)
 mean_iou = MeanIoU(num_classes=2).to(device)
 
-for epoch in range(20):
+for epoch in range(100):
     # 训练
     model.train()
     total_loss = 0
