@@ -9,7 +9,7 @@ from  unetplus import  UNetPlus,DoubleConv
 
 
 model_path= "src/unetplus/unetplus-4.pth"
-image_path="./src/DJI_20240423132549_0005_W.JPG"
+image_path="./src/20230808152650_0018_W.jpeg"
 
 image = Image.open(image_path).convert("RGB")
 model= torch.load(model_path,map_location="cpu")
@@ -24,7 +24,7 @@ with torch.no_grad():
     image = utils.pad_16(image)
     # image = image.to('cuda')
     output= model(image)
-    torchvision.utils.save_image(output,fp="./src/unetplus-5-4.jpg")
+    torchvision.utils.save_image(output,fp="./src/unetplus-18-4.jpg")
     print("---"*8)
 
 
