@@ -130,6 +130,7 @@ class WaterDataset512(Dataset):
 # 图像数据增强
 class ExtendTransform:
     # 图像数据进行增强，
+    # ["original", "h_flip", "v_flip", "rotate_90", "rotate_180", "rotate_270"]
     def __init__(self, transform_type_list=["original", "h_flip", "v_flip", "rotate_90", "rotate_180", "rotate_270"]):
         self.transform_type_list = transform_type_list
 
