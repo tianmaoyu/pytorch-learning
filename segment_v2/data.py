@@ -190,7 +190,6 @@ class ExtendWaterDataset(Dataset):
         image_path = self.image_path_list[index]
         image_mask_path = self.mask_path_list[index]
 
-        print(image_path)
         try:
             image = Image.open(image_path).convert("RGB")
             mask_image = Image.open(image_mask_path).convert("L")

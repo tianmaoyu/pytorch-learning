@@ -10,7 +10,8 @@ import logging
 from torchmetrics.segmentation import MeanIoU
 from unet import Unet
 from copy import deepcopy
-
+from  tqdm import  trange,tqdm
+from colorama import Fore
 # 训练停止条件，连续 多少次没有增长
 class TrainStop:
     def __init__(self, count=3):
@@ -39,21 +40,20 @@ class TrainStop:
 # 日志
 def config_logger(name="train"):
     # 设置日志的基本配置
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger("train")
     logger.setLevel(logging.DEBUG)
+
     # 创建一个handler，用于写入日志文件
     file_handler = logging.FileHandler('app.log')
-    file_handler.setLevel(logging.DEBUG)
-    # 再创建一个handler，用于输出到控制台
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.DEBUG)
-    # 定义handler的输出格式
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)
-    stream_handler.setFormatter(formatter)
-    # 给logger添加handler
     logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
+
+    # # 再创建一个handler，用于输出到控制台
+    # stream_handler = logging.StreamHandler()
+    # stream_handler.setFormatter(formatter)
+    # logger.addHandler(stream_handler)
+
     return logger
 
 
@@ -130,7 +130,8 @@ for epoch in range(20):
     model.train()
     total_loss = 0
     mean_iou.reset()
-    for step, (images, mask_images) in enumerate(train_dataloader):
+    train_bar=tqdm(train_dataloader,total=len(train_dataloader),leave=True, postfix=Fore.GREEN)
+    for step, (images, mask_images) in enumerate(train_bar):
         # todo 返回 None,或者 这句话写到下面 -会还是对图片进行 采集，会出现一个问题
         images, mask_images = images.to(device), mask_images.to(device)
         height, width = functional.get_image_size(images)
@@ -154,16 +155,22 @@ for epoch in range(20):
         total_loss += loss_result.item()
         mean_iou.update((model_result > 0.5).long(), mask_images.long())
 
+        miou = mean_iou.compute().item() / (step + 1)
+        train_bar.set_description(f"train")
+        train_bar.set_postfix(epoch=epoch, train_miou=miou, loss=loss_result.item())
+
         if step % 50 == 0:
-            logger.info(f"epoch:{epoch} step: {step},loss: {loss_result.item()} iou:{mean_iou.compute().item() / 50}")
-            mean_iou.reset()
+            logger.info(f"epoch:{epoch} step: {step},loss: {loss_result.item()} train_miou:{miou}")
+
 
     # 验证
     model.eval()
     mean_iou.reset()
     var_mean_iou = 0
+    var_bar = tqdm(val_dataloader, total=len(val_dataloader), leave=True, postfix=Fore.RED)
+
     with torch.no_grad():
-        for images, targets in val_dataloader:
+        for step, (images, targets) in enumerate(var_bar) :
             images, targets = images.to(device), targets.to(device)
             outputs = model(images)
             # 阈值化并转换为整数类型
@@ -171,9 +178,14 @@ for epoch in range(20):
             # 更新 MeanIoU- 内部是累加
             mean_iou.update(outputs, targets.long())
 
+            var_mean_iou = mean_iou.compute().item() / (step + 1)
+            train_bar.set_description(f"var")
+            var_bar.set_postfix(epoch=epoch, var_miou=var_mean_iou)
+
         logger.info("---" * 20)
         var_mean_iou = mean_iou.compute().item() / len(val_dataloader)
         logger.info(f"第epoch: {epoch}  Var Mean IoU: {var_mean_iou} total_loss :{total_loss}")
+
 
     torch.save(model, f"unet-{epoch}.pth")
     logger.info(f"模型已经保存：unet-{epoch}.pth")
@@ -181,4 +193,5 @@ for epoch in range(20):
     is_stop = train_stop(var_mean_iou)
     if is_stop:
         logger.info(f"停止训练: epoch:{epoch} 最佳iou {train_stop.best} , score_list:{train_stop.score_list}")
+        print(f"停止训练: epoch:{epoch} 最佳iou {train_stop.best} , score_list:{train_stop.score_list}")
         break
