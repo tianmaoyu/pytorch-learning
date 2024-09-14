@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchsummary
+
 
 
 class DoubleConv(nn.Module):
@@ -75,5 +77,6 @@ class UNetPlus(nn.Module):
 if __name__ == '__main__':
     input = torch.randn(1, 3, 512, 512)
     model = UNetPlus(3, 1)
+    torchsummary.summary(model,(3,256,256))
     output = model(input)
     print(output)

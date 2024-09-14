@@ -1,6 +1,7 @@
 # github 标准的模型  https://github.com/tianmaoyu/Pytorch-UNet/tree/master/unet
-
+import torchsummary
 import torch
+
 from torch import nn
 import utils
 
@@ -88,5 +89,6 @@ if __name__ == '__main__':
     # 防止
     in_data = utils.pad_16(in_data)
     model = Unet(3, 1)
+    torchsummary.summary(model,(3,1024,1024))
     out_data = model(in_data)
     print(out_data.shape)
