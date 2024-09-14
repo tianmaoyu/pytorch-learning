@@ -132,7 +132,6 @@ for epoch in range(100):
     mean_iou.reset()
     train_bar=tqdm(train_dataloader,total=len(train_dataloader),leave=True, postfix=Fore.GREEN)
     for step, (images, mask_images) in enumerate(train_bar):
-        # todo 返回 None,或者 这句话写到下面 -会还是对图片进行 采集，会出现一个问题
         images, mask_images = images.to(device), mask_images.to(device)
         height, width = functional.get_image_size(images)
 
