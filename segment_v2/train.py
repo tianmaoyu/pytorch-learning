@@ -94,11 +94,11 @@ logger = config_logger()
 train_stop = TrainStop(count=3)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-dataset1 = WaterDataset(f"E:\语义分割\water_v1\water_v1")
-dataset2 = WaterDataset(f"E:\语义分割\water_v2\water_v2")
-dataset3 = WaterDataset(f"D:\语义分割\水体标注\project-2-at-2024-09-06-17-48-376b4f93")
+dataset1 = WaterDataset(f"D:\迅雷下载\water_v1\water_v1")
+# dataset2 = WaterDataset(f"E:\语义分割\water_v2\water_v2")
+# dataset3 = WaterDataset(f"D:\语义分割\水体标注\project-2-at-2024-09-06-17-48-376b4f93")
 # dataset4 = WaterDataset(f"D:\语义分割\water_v2")
-dataset = merge_datasets([dataset1, dataset2,dataset3])
+dataset = merge_datasets([dataset1])
 
 # 每次都生成一样
 generator = torch.Generator().manual_seed(666)

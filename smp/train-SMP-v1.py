@@ -56,6 +56,11 @@ model = smp.PSPNet(
     classes=1,
     activation="sigmoid"
 ).to(device)
+
+smp.Unet(
+
+)
+
 loss = nn.BCELoss().to(device)
 # loss = smp.losses.DiceLoss(mode="binary")
 # smp.metrics.iou_score()

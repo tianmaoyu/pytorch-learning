@@ -25,18 +25,20 @@ def pad_32(image: Tensor) -> Tensor:
 
 def demo_unet():
     model = smp.Unet(
-        encoder_name="resnet50",
+        encoder_name="resnet152",
         encoder_weights="imagenet",
         in_channels=3,
         classes=1,
         activation="sigmoid"
     )
+
     input = torch.randn(2, 3, 1000, 1000)
     input = pad_32(input)
     summary(model, input_data=input)
     output = model(input)
     print(output)
 
+demo_unet()
 def demo_DeepLabV3Plus():
     model = smp.DeepLabV3Plus(
         encoder_name="resnet50",
@@ -79,4 +81,4 @@ def demo_UNetV2():
     print(output)
 
 # demo_UNetV2()
-demo_unet()
+# demo_unet()

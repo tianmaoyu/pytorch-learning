@@ -9,12 +9,20 @@ from torchmetrics.segmentation import MeanIoU
 def meaniou_001():
     # 假设我们有两个批次的预测和真实标签
     preds = torch.tensor([[[0, 1], [1, 0]], [[1, 0], [0, 1]]])
+    preds1 = torch.tensor([[[1,0], [1, 0]], [[1, 0], [0, 1]]])
+    preds2 = torch.tensor([[[0, 1], [1, 0]], [[1, 0], [0, 1]]])
     target = torch.tensor([[[0, 1], [1, 0]], [[0, 1], [1, 0]]])
+
     # 创建 MeanIoU 实例
     mean_iou = MeanIoU(num_classes=2)
     # 更新状态- 里面会进行累加
     mean_iou.update(preds, target)
-    mean_iou.update(preds, target)
+    iou = mean_iou.compute()
+    print(f"Mean IoU: {iou}")
+    mean_iou.update(preds1, target)
+    iou = mean_iou.compute()
+    print(f"Mean IoU: {iou}")
+    mean_iou.reset()
     mean_iou.update(preds, target)
     # 计算平均 IoU
     iou = mean_iou.compute()

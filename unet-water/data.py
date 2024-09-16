@@ -14,8 +14,8 @@ import torch.nn
 # from torchvision import  transforms
 import shutil
 import utils
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
+# import albumentations as A
+# from albumentations.pytorch import ToTensorV2
 
 transform = transforms.Compose([
     transforms.ToTensor()
