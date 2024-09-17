@@ -10,7 +10,7 @@ from backbone import *
 from hrnet import *
 
 model_path = "model_data/hrnet-3.pth"
-image_path = "model_data/DJI_20230630102737_0029_W.JPG"
+image_path = "model_data/DJI_20230630102817_0048_W.JPG"
 
 image = Image.open(image_path).convert("RGB")
 model = torch.load(model_path, map_location="cpu")
@@ -24,5 +24,5 @@ with torch.no_grad():
     image = utils.pad_16(image)
     # image = image.to('cuda')
     output = model(image)
-    torchvision.utils.save_image(output, fp="model_data/29-3.jpg")
+    torchvision.utils.save_image(output, fp="model_data/48-3.jpg")
     print("---" * 8)
