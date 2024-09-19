@@ -8,8 +8,8 @@ import  utils
 from  unet import  Unet,DoubleConv,DownSimple,UpSimple
 
 
-model_path= "src/unet-11.pth"
-image_path="./src/DJI_20230630102737_0029_W.JPG"
+model_path= "src/unet/unet-7.pth"
+image_path="./src/DJI_20240423132533_0004_Z.JPG"
 
 image = Image.open(image_path).convert("RGB")
 model= torch.load(model_path,map_location="cpu")
@@ -24,7 +24,7 @@ with torch.no_grad():
     image = utils.pad_16(image)
     # image = image.to('cuda')
     output= model(image)
-    torchvision.utils.save_image(output,fp="./src/unet-28-11.jpg")
+    torchvision.utils.save_image(output,fp="./src/unet-z-7.jpg")
     print("---"*8)
 
 
