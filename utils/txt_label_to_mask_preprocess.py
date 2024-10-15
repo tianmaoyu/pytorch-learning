@@ -67,7 +67,7 @@ def preprocess_images(root_path: str):
             continue
 
         label_file_path = os.path.join(label_root, file_name)
-        image_base_name = file_name.replace(".txt", ".jpeg")
+        image_base_name = file_name.replace(".txt", ".JPG")
 
         image_file_path = os.path.join(image_root, image_base_name)
         mask_file_path = os.path.join(mask_root, image_base_name)
@@ -85,4 +85,4 @@ def preprocess_images(root_path: str):
             print(f"错误信息：{image_file_path}",e)
 
 
-preprocess_images(r"D:\语义分割\水体标注\project-2-at-2024-09-06-17-48-376b4f93")
+preprocess_images(r"D:\语义分割\水体标注\无人机红外-格式一")
