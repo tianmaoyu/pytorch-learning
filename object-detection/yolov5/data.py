@@ -62,7 +62,7 @@ class CocoDataset(Dataset):
                 result.append(list)
 
         return result
-
+    # ddd
     def _get_image(self, image_path) -> Image:
         try:
             image = Image.open(image_path).convert("RGB")
