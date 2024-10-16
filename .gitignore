@@ -10,3 +10,4 @@ dataset/
 /unet/out/
 *.png
 *.jpg
+/object-detection/yolov5/coco128/
