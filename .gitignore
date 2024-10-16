@@ -12,3 +12,4 @@ dataset/
 *.jpg
 /object-detection/yolov5/coco128/
 /object-detection/yolov5/coco128/*
+*.pth
