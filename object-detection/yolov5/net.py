@@ -111,11 +111,11 @@ class YoloV5(nn.Module):
 
         self.cv_1= ConvBNSiLU(1024,512,1,1,0)
         # 上采样使用的是 nearest
-        self.up_2= nn.Upsample(scale_factor=2,mode="nearest",align_corners=True)
+        self.up_2= nn.Upsample(scale_factor=2,mode="nearest")
 
         self.c3_4= C3(1024,512,1,1,0,bottleneck_num=3, add_flag=False)
         self.cv_5= ConvBNSiLU(512,256,1,1,0)
-        self.up_6= nn.Upsample(scale_factor=2,mode="nearest",align_corners=True)
+        self.up_6= nn.Upsample(scale_factor=2,mode="nearest")
 
         self.c3_8 = C3(512, 256, 1, 1, 0, add_flag=False)
         self.cv_9 = ConvBNSiLU(256, 256, 3, 2, 1)
