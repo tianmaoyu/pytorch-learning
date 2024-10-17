@@ -1,30 +1,28 @@
 import glob
 import os
-import random
 
-import torch
 from PIL import Image
 from functorch.dim import Tensor
+from matplotlib import pyplot as plt
 from torch.utils.data import Dataset
+from torchvision.transforms import ToPILImage,functional
 
-transform=
+import utils
+
 
 class CocoDataset(Dataset):
     img_formats = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp', 'mpo']  # acceptable image suffixes
 
-    def __init__(self, image_path, label_path, max_size=2000_000, ):
-        """
-
-        :param image_path: 图像目录
-        :param label_path: lalel 目录
-        :param max_size: 超过最大值进行缩放
-        """
+    def __init__(self, image_path, label_path):
         super().__init__()
-        self.max_size = max_size
+
         self.image_path = image_path
         self.label_path = label_path
         self.label_list = []
         self.image_list = []
+
+        if not os.path.exists(label_path):
+            print(f"路径 {label_path} 不存在")
 
         label_files = sorted(glob.glob(os.path.join(self.label_path, '*.txt')))
 
@@ -42,16 +40,19 @@ class CocoDataset(Dataset):
     def __len__(self):
         return len(self.label_list)
 
-    def __getitem__(self, index) -> tuple[Tensor, Tensor]:
+    def __getitem__(self, index) -> tuple[Tensor, list[list[float]]]:
         label_path = self.label_list[index]
         image_path = self.image_list[index]
 
-        label = self._get_label(label_path)
-        image = self._get_image(image_path)
+        labels = self._get_label(label_path)
+        image = Image.open(image_path).convert("RGB")
 
-        image = transform(image)
-        label = transform(label)
-        return image,label
+        # 填充32 倍数，和缩放 640
+        image,labels=utils.letterbox(image,labels)
+
+        image= functional.to_tensor(image)
+
+        return image, labels
 
     def _get_label(self, label_path) -> []:
         result = []
@@ -62,37 +63,31 @@ class CocoDataset(Dataset):
                 result.append(list)
 
         return result
-    # ddd
-    def _get_image(self, image_path) -> Image:
-        try:
-            image = Image.open(image_path).convert("RGB")
-            # 图片太大，进行等比列缩放-内存不足
-            width, height = image.size
-            pixel_num = width * height
-            if pixel_num > self.max_size:
-                scale_factor = self.max_size / pixel_num
-                new_width = int(width * scale_factor)
-                new_height = int(height * scale_factor)
-                # 缩放图像,建议双线性插值
-                image = image.resize((new_width, new_height), resample=Image.LANCZOS)
 
-            return image
-        except Exception as e:
-            print(f"数据错误: {image_path}", e)
-            return None
 
 
 if __name__ == '__main__':
     image_path = "coco128/images/train2017"
     label_path = "coco128/labels/train2017"
-    # CocoDataset(image_path, label_path)
-    txt_file = "coco128/labels/train2017/000000000009.txt"
-    with open(txt_file, "r") as label_file:
-        label_list = label_file.read().strip().splitlines()
-        point_list = []
-        for line in label_list:
-            text_list = line.split()
-            # 只有一类，   # 删除第一个标签
-            points = [float(item) for item in text_list]
-            point_list.append(points)
-        print(point_list)
+    dataset= CocoDataset(image_path, label_path)
+    image,labels=dataset[0]
+
+    print(labels)
+
+    to_pil_image = ToPILImage()
+
+    plt.figure(dpi=300)
+
+    img= to_pil_image(image)
+    plt.subplot(1, 2, 1)
+    plt.imshow(img)
+    plt.axis('off')
+
+    plt.subplot(1, 2, 2)
+    img_draw=utils.draw_rectangle(img,labels)
+    plt.imshow(img_draw)
+    plt.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
