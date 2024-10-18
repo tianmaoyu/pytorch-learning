@@ -94,6 +94,8 @@ class YoloV5Loss():
         # 变形
         pred_data = prediction.view(bs, 3, channel // 3, height, width).permute(0, 1, 3, 4, 2).contiguous()
 
+
+
         #  获取预测的数据
         pred_x = pred_data[..., 0]
         pred_y = pred_data[..., 1]
@@ -102,10 +104,19 @@ class YoloV5Loss():
         pred_obj = pred_data[..., 4]
         pred_cls = pred_data[..., 5:]
 
-        target,ather= build_targets()
-        grid_x, grid_y, anchor_w, anchor_h= zip(*ather)
+        # 根据特征图，生成网格 grid
+        grid_x, grid_y = torch.meshgrid([torch.arange(height), torch.arange(width)], indexing='ij')
+        grid_x = grid_x.float().to(prediction.device)
+        grid_y = grid_y.float().to(prediction.device)
+        grid_x = grid_x.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, height, width)
+        grid_y = grid_y.unsqueeze(0).unsqueeze(0)  # shape: (1, 1, height, width)
 
-        bx, by, bw, bh = self.compute_pred_box(pred_x, pred_y, pred_w, pred_h, grid_x, grid_y, anchor_w, anchor_h)
+        # 示例：3 个锚框, 比如: 网格坐标(0,0) 位置对应 可以取出 三组 预测值，对应三个anchor box
+        anchors = torch.tensor([[10, 13], [16, 30], [33, 23]], device=prediction.device).float()
+        anchor_w = anchors[:, 0].view(1, 3, 1, 1)  # 锚框宽度
+        anchor_h = anchors[:, 1].view(1, 3, 1, 1)  # 锚框高度
+
+        bx, by, bw, bh = self.compute_grid_box(pred_x, pred_y, pred_w, pred_h, grid_x, grid_y, anchor_w, anchor_h)
 
         # 定位损失 (CIoU)
         loc_loss = self.ciou_loss(bx, by, bw, bh, target[..., :4])
@@ -121,7 +132,7 @@ class YoloV5Loss():
 
         return loss
 
-    def compute_pred_box(self, pred_x, pred_y, pred_w, pred_h, grid_x, grid_y, anchor_w, anchor_h):
+    def compute_grid_box(self, pred_x, pred_y, pred_w, pred_h, grid_x, grid_y, anchor_w, anchor_h):
         # 中心坐标纠正
         bx = 2 * torch.sigmoid(pred_x) - 0.5 + grid_x
         by = 2 * torch.sigmoid(pred_y) - 0.5 + grid_y
@@ -188,32 +199,10 @@ def build_targets():
     # [6] image,label,x,y,w,h
     # [3,2] w,h  缩小scale倍
     anchor_templates = torch.tensor([[10, 13], [16, 30], [33, 23]]).float() / scale
+
+    # (1,3,80,80,85)
+
     anchor_list= match_anchors(labels,anchor_templates,size=(width,height))
     grid_list= match_grids(labels,size=(width,height))
 
-    # 这里要组装一个 tragets,和 other
-    targets = torch.zeros((len(anchor_list), len(grid_list), 6))  # 6维: [x, y, w, h, obj_conf, cls]
-    other = []
-
-    # 填充 target
-    for anchor_idx, anchor in anchor_list:
-        for grid_idx, (grid_x, grid_y) in enumerate(grid_list):
-            # 计算与网格和 anchor 的偏移
-            tx = labels[2] * width - grid_x
-            ty = labels[3] * height - grid_y
-            tw = torch.log((labels[4] * width) / anchor[0])
-            th = torch.log((labels[5] * height) / anchor[1])
-
-            # 填入到 target 中
-            targets[anchor_idx, grid_idx, 0] = tx
-            targets[anchor_idx, grid_idx, 1] = ty
-            targets[anchor_idx, grid_idx, 2] = tw
-            targets[anchor_idx, grid_idx, 3] = th
-            targets[anchor_idx, grid_idx, 4] = 1  # object confidence
-            targets[anchor_idx, grid_idx, 5] = labels[1]  # 分类标签 (cls)
-
-            # 把对应的 grid 和 anchor 信息保存在 other 中
-            other.append([grid_x, grid_y, anchor[0], anchor[1]])
-
-    return targets, other
 
