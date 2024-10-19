@@ -4,10 +4,18 @@ import torch.nn as nn
 # 假设我们有一批次的 logits 和真实标签
 logits = torch.tensor([100.0, 0.5, -1.0])  # 这可以是模型的原始输出
 targets = torch.tensor([1.0, 0.0, 0])  # 真实标签
+targets = torch.tensor([0.9, 0.0, 0])  # 真实标签
 
 # 使用 BCEWithLogitsLoss,默认输出 loss 的均值
 bce_loss= nn.BCEWithLogitsLoss()
 loss = bce_loss(logits, targets)
+
+logits2 = torch.tensor([0.0, 0.0, 0.0])  # 这可以是模型； 全部为 0 的意思是模型对于这三个类别都没有“信心”地输出了中立的预测
+
+# 全为0 是负样
+targets2 = torch.tensor([0.0, 0.0, 0])  # 真实标签
+loss2 = bce_loss(logits2, targets2)
+
 print("BCEWithLogitsLoss:", loss.item())
 
 # 手动计算过程：
