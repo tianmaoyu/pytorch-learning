@@ -79,6 +79,39 @@ class YoloV5Loss:
         bh = (2 * torch.sigmoid(pred_h)) ** 2 * anchor_h
         return bx, by, bw, bh
 
+    def build_predict_box(self, pred_data, layer_anchor):
+        """
+        :param pred_data:  [bs,3,80,80,85]
+        :param layer_anchor: [3,2]
+        :return: 预测框，形状为 [bs,3,80,80,4]
+        """
+        # [3]
+        anchor_w = layer_anchor[..., 0]
+        anchor_h = layer_anchor[..., 1]
+        # [bs, 3, 80, 80]
+        pred_x = pred_data[..., 1]
+        pred_y = pred_data[..., 2]
+        pred_w = pred_data[..., 3]
+        pred_h = pred_data[..., 4]
+
+        # 中心坐标纠正
+        x = 2 * torch.sigmoid(pred_x) - 0.5
+        y = 2 * torch.sigmoid(pred_y) - 0.5
+        # [1,3,1,1]
+        anchor_w = anchor_w.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        anchor_h = anchor_h.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        # 宽高纠正
+        w = (2 * torch.sigmoid(pred_w)) ** 2 * anchor_w
+        h = (2 * torch.sigmoid(pred_h)) ** 2 * anchor_h
+
+        # 形状 [bs, 4, 3, 80, 80]
+        pred_box = torch.stack([x, y, w, h], dim=1)
+        # 形状 [bs, 4, 3, 80, 80] -> [bs,3,80,80,4]
+        pred_box = pred_box.permute(0, 2, 3, 4, 1).contiguous()
+
+        return pred_box
+
+
     def build_targets(self, labels, pred_shape):
         """
         构建目标匹配，用于计算损失

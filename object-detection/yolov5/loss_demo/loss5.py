@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -91,104 +93,92 @@ class YoloV5Loss():
             [[116., 90.], [156., 198.], [373., 326.]]
         ]
 
-    def __call__(self, predict_layer_list: list[Tensor], label: Tensor):
+    def __call__(self, predict_layer_list: List, label_list: Tensor):
 
-        batch_size=label.shape[0]
-        loc_loss = torch.zeros(1, device=label.device)
-        cls_loss = torch.zeros(1, device=label.device)
-        obj_loss = torch.zeros(1, device=label.device)
+        device = label_list.device
+        batch_size = label_list.shape[0]
+        box_loss = torch.zeros(1, device=device)
+        cls_loss = torch.zeros(1, device=device)
+        obj_loss = torch.zeros(1, device=device)
 
         for i, predict_layer in enumerate(predict_layer_list):
             layer_scale = self.layer_scale_list[i]
             layer_obj_loss_weight = self.layer_obj_loss_weight_list[i]
             layer_anchor = self.layer_anchors_list[i]
 
-            #
             layer_anchor = torch.tensor(layer_anchor).float() / layer_scale
 
+            # 变形 [bs,3*(5+class_num),h,w] ->  [bs,3, (5+class_num),h,w] ->  [bs,3,h,w,(5+class_num)]
             bs, channel, height, width = predict_layer.shape
+            predict_data = predict_layer.view(bs, 3, channel // 3, height, width).permute(0, 1, 3, 4, 2).contiguous()
+            target, mask = self.build_target(label_list, layer_anchor, height, width, device)
 
-            # 变形
-            pred_data = predict_layer.view(bs, 3, channel // 3, height, width).permute(0, 1, 3, 4, 2).contiguous()
+            predict_obj = predict_data[..., 4]
+            target_obj = torch.zeros(predict_obj.shape, device=device)
 
-            # 形状 [bs, 3, 80, 80,4]
-            pred_box = self.build_pred_box(pred_data, layer_anchor)
+            # 是否匹配到正样本
+            predict_positive = predict_data[mask]
+            if predict_positive.shape[0] > 0:
+                # 形状 [bs, 3, 80, 80,4]
+                predict_box = self.build_predict_box(predict_data, layer_anchor)
 
-            target, mask = self.build_target(label, layer_anchor, height, width)
+                # 定位损失 :只计算正样本
+                predict_box_positive = predict_box[mask]
+                target_box_positive = target[mask][:, :4]
+                ciou = self.bbox_ciou(predict_box_positive, target_box_positive)
+                box_loss += (1.0 - ciou).mean()
 
-            # 定位损失 :只计算正样本
-            target_box_positive = target[mask][:4]
-            pred_box_positive = pred_box[mask][:4]
-            ciou = self.bbox_ciou(pred_box_positive, target_box_positive)
-            loc_loss += (1.0 - ciou).mean()
+                # 根据ciou计算而得
+                target_obj[mask] = ciou.detach().clamp(0)
 
-            # 目标性损失 :正负样本都计算
-            pred_obj = pred_data[..., 4]
-            target_obj = torch.zeros(pred_obj.shape, device=pred_data.device)
-            target_obj[mask] = ciou
-            obj_loss += self.bce_loss(pred_obj, target_obj)
+                # 分类损失 :只计算正样本
+                predict_cls_positive = predict_data[mask][:, 5:]
+                target_cls_positive = target[mask][:, 5:]
+                cls_loss += self.bce_loss(predict_cls_positive, target_cls_positive)
 
-            # 分类损失 :只计算正样本
-            pred_cls_positive = pred_data[mask][5:]
-            target_cls_positive = pred_data[mask][5:]
-            cls_loss += self.bce_loss(pred_cls_positive, target_cls_positive)
+            # 目标性损失 :正负样本都计算，并且每个layer 的权重也不一样
+            obj_loss += self.bce_loss(predict_obj, target_obj) * layer_obj_loss_weight
 
         # 总损失 三个损失 权重系数：1; 0.5 ;0.005
-        loss = 1 * obj_loss + 0.5 * cls_loss + 0.05 * loc_loss
+        obj_loss = 1.0 * obj_loss
+        cls_loss = 0.5 * cls_loss
+        box_loss = 0.05 * box_loss
+        loss = obj_loss + cls_loss + box_loss
 
-        return loss * batch_size
+        return loss * batch_size, torch.cat([box_loss, obj_loss, cls_loss, loss]).detach()
 
-    def build_pred_box(self, pred_data, layer_anchor):
+    def build_predict_box(self, predict_data, layer_anchor):
+        # [bs,3,h,w,4]
+        box = predict_data[..., :4].clone()
+
+        xy = box[..., :2]
+        box[..., :2] = 2 * torch.sigmoid(xy) - 0.5
+
+        wh = box[..., 2:4]
+        # 调整形状以匹配 [1,3,1,1,2]
+        anchor_wh = layer_anchor.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        box[..., 2:4] = (2 * torch.sigmoid(wh)) ** 2 * anchor_wh
+
+        return box
+
+    def build_target(self, label_list, layer_anchor, height, width, device):
         """
-        :param pred_data:  [bs,3,80,80,85]
-        :param layer_anchors: [3,2]
-        :return: 预测框，形状为 [4, bs, 3, 80, 80]
-        """
-        # [3]
-        anchor_w = layer_anchor[..., 0]
-        anchor_h = layer_anchor[..., 1]
-        # [bs, 3, 80, 80]
-        pred_x = pred_data[..., 1]
-        pred_y = pred_data[..., 2]
-        pred_w = pred_data[..., 3]
-        pred_h = pred_data[..., 4]
-
-        # 中心坐标纠正
-        x = 2 * torch.sigmoid(pred_x) - 0.5
-        y = 2 * torch.sigmoid(pred_y) - 0.5
-        # [1,3,1,1]
-        anchor_w = anchor_w.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        anchor_h = anchor_h.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        # 宽高纠正
-        w = (2 * torch.sigmoid(pred_w)) ** 2 * anchor_w
-        h = (2 * torch.sigmoid(pred_h)) ** 2 * anchor_h
-
-        # 形状 [bs, 4, 3, 80, 80]
-        pred_box = torch.stack([x, y, w, h], dim=1)
-        # 形状 [bs, 4, 3, 80, 80] -> [bs,3,80,80,4]
-        pred_box = pred_box.permute(0, 2, 3, 4, 1).contiguous()
-
-        return pred_box
-
-    def build_target(self, labels, layer_anchor, height, width):
-        """
-        :param pred_data: [bs,3,80,80,85]
-        :param label:  [bs,target_num,6]  (image,label,x,y,w,h)
+        :param label_list:  [bs,target_num,6]  (image,label,x,y,w,h)
         :param layer_anchor:  [3,2]
         :param height:
         :param width:
         """
-        bs, target_num = labels.shape[:2]
+        batch, target_num = label_list.shape[:2]
         anchor_num = len(layer_anchor)
         # 初始化目标框张量，形状为 [bs, 3, 80, 80]
-        target = np.zeros([bs, anchor_num, height, width, 85])
-        mask = np.zeros([bs, anchor_num, height, width])
+        target = np.zeros([batch, anchor_num, height, width, 85])
+        mask = np.zeros([batch, anchor_num, height, width])
 
         # 分别循环批次，网格，anchor_num个层
-        for b in range(bs):
+        for b in range(batch):
             for i in range(target_num):
-                label = labels[b, i]
-                label_index = labels[1]
+                label = label_list[b, i]
+                class_index = label[1].long()
                 true_x, true_y, true_w, true_h = label[2:6]
                 # 计算对应网格的 x,y 坐标
                 grid_x = int(true_x * width)
@@ -201,40 +191,49 @@ class YoloV5Loss():
                     h_ratio = true_h / anchor_h
 
                     if (0.25 < w_ratio < 4) and (0.25 < h_ratio < 4):
-                        # 填充目标框数据 xywh
-                        # 注意：类别是 one-hot 编码
-                        target[b, k, grid_y, grid_x, :4] = true_x, true_y, true_w, true_h
-                        target[b, k, grid_y, grid_x, 5 + label_index] = 1
                         mask[b, k, grid_y, grid_x] = True
+                        # 注意：类别是 one-hot 编码
+                        target[b, k, grid_y, grid_x, 5 + class_index] = 1
+                        mod_x, mod_y = true_x - grid_x, true_y - grid_y
+                        # 计算 x,y,w,h, 注意：x,y 是相对于该grid_x,grid_y坐标的偏移
+                        target[b, k, grid_y, grid_x, :4] = mod_y, mod_x, true_w, true_h
 
                         # 匹配 网格 left,top,right,down 是否满足
-                        mod_x, mod_y = true_x - grid_x, true_y - grid_y
                         # left
                         if mod_x < 0.5 and grid_x > 0:
-                            target[b, k, grid_y, grid_x - 1, :4] = true_x, true_y, true_w, true_h
-                            target[b, k, grid_y, grid_x - 1, 5 + label_index] = 1
+                            target[b, k, grid_y, grid_x - 1, :4] = mod_y, mod_x + 1, true_w, true_h
+                            target[b, k, grid_y, grid_x - 1, 5 + class_index] = 1
                             mask[b, k, grid_y, grid_x - 1] = True
                             # top
                         if mod_y < 0.5 and grid_y > 0:
-                            target[b, k, grid_y - 1, grid_x, :4] = true_x, true_y, true_w, true_h
-                            target[b, k, grid_y - 1, grid_x, 5 + label_index] = 1
+                            target[b, k, grid_y - 1, grid_x, :4] = mod_y + 1, mod_x, true_w, true_h
+                            target[b, k, grid_y - 1, grid_x, 5 + class_index] = 1
                             mask[b, k, grid_y - 1, grid_x] = True
                         # right
                         if mod_x > 0.5 and grid_x < width - 1:
-                            target[b, k, grid_y, grid_x + 1, :4] = true_x, true_y, true_w, true_h
-                            target[b, k, grid_y, grid_x + 1, 5 + label_index] = 1
+                            target[b, k, grid_y, grid_x + 1, :4] = mod_y, mod_x - 1, true_w, true_h
+                            target[b, k, grid_y, grid_x + 1, 5 + class_index] = 1
                             mask[b, k, grid_y, grid_x + 1] = True
                         # down
                         if mod_y > 0.5 and grid_y < height - 1:
-                            target[b, k, grid_y + 1, grid_x, :4] = true_x, true_y, true_w, true_h
-                            target[b, k, grid_y + 1, grid_x, 5 + label_index] = 1
+                            target[b, k, grid_y + 1, grid_x, :4] = mod_y - 1, mod_x, true_w, true_h
+                            target[b, k, grid_y + 1, grid_x, 5 + class_index] = 1
                             mask[b, k, grid_y + 1, grid_x] = True
 
-        return torch.tensor(target), torch.tensor(mask)
+        return torch.tensor(target, dtype=torch.float32,device=device), torch.tensor(mask, dtype=torch.bool,device=device)
 
 
 if __name__ == '__main__':
-    labels = torch.tensor([[4, 22, 0.346211, 0.493259, 0.089422, 0.052118]])
+    labels = torch.tensor([
+        [2, 45, 0.479492, 0.688771, 0.955609, 0.5955],
+        [2, 45, 0.736516, 0.247188, 0.498875, 0.476417],
+        [2, 50, 0.637063, 0.732938, 0.494125, 0.510583],
+        [2, 45, 0.339438, 0.418896, 0.678875, 0.7815],
+        [2, 49, 0.646836, 0.132552, 0.118047, 0.0969375],
+        [2, 49, 0.773148, 0.129802, 0.0907344, 0.0972292],
+        [2, 49, 0.668297, 0.226906, 0.131281, 0.146896],
+        [2, 49, 0.642859, 0.0792187, 0.148063, 0.148062]
+    ])
     labels = labels.unsqueeze(0)
     layer1 = torch.rand([1, 3 * 85, 80, 80])
     layer2 = torch.rand([1, 3 * 85, 40, 40])
@@ -243,4 +242,5 @@ if __name__ == '__main__':
 
     loss = YoloV5Loss()
 
-    loss(layer_list, labels)
+    result = loss(layer_list, labels)
+    print(result)
