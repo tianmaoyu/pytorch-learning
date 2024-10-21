@@ -190,6 +190,7 @@ class YoloV5Loss():
                     w_ratio = true_w / anchor_w
                     h_ratio = true_h / anchor_h
 
+                    # 两个的比例在 0.25-4 之间
                     if (0.25 < w_ratio < 4) and (0.25 < h_ratio < 4):
                         mask[b, k, grid_y, grid_x] = True
                         # 注意：类别是 one-hot 编码
