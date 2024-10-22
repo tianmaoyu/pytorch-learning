@@ -94,7 +94,7 @@ for epoch in range(100):
 
         train_total_loss += loss_detail
         # 日志
-        box_loss, obj_loss, cls_loss, yolo_loss = train_total_loss.numpy()
+        box_loss, obj_loss, cls_loss, yolo_loss = train_total_loss.cpu().numpy()
         train_bar.set_postfix(yolo_loss=yolo_loss, box_loss=box_loss,obj_loss=obj_loss, cls_loss=cls_loss,)
 
 
@@ -116,12 +116,12 @@ for epoch in range(100):
 
             eval_total_loss += loss_detail
             # 日志
-            box_loss, obj_loss, cls_loss, yolo_loss = train_total_loss.numpy()
+            box_loss, obj_loss, cls_loss, yolo_loss = train_total_loss.cpu().numpy()
             eval_bar.set_postfix(yolo_loss=yolo_loss, box_loss=box_loss, obj_loss=obj_loss, cls_loss=cls_loss)
 
     # 保存模型--------------------------------------------------------------------
-    torch.save(model, f"yolov5-{epoch}.pth")
-    logger.info(f"第epoch:{epoch} eval:{eval_total_loss.numpy().tolist()} train:{train_total_loss.numpy().tolist()}  pth: yolov5-{epoch}.pth")
+    torch.save(model, f"out/yolov5-{epoch}.pth")
+    logger.info(f"第epoch:{epoch} eval:{eval_total_loss.cpu().numpy()} train:{train_total_loss.cpu().numpy().tolist()}  pth: yolov5-{epoch}.pth")
 
 
     # 是否停止--------------------------------------------------------------------
