@@ -1,6 +1,7 @@
 import glob
 import os
 
+import torch
 from PIL import Image
 from functorch.dim import Tensor
 from matplotlib import pyplot as plt
@@ -51,6 +52,7 @@ class CocoDataset(Dataset):
         image,labels=utils.letterbox(image,labels)
 
         image= functional.to_tensor(image)
+        labels = torch.tensor(labels)
 
         return image, labels
 

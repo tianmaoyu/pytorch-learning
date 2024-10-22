@@ -74,14 +74,15 @@ class BBoxCIoU(nn.Module):
 
 
 #
-class YoloV5Loss():
-    def __init__(self):
+class YoloV5Loss(nn.Module):
+    def __init__(self, class_num=80):
+        super().__init__()
         """
         :feature_map_num:  不同的特征层（不同分辨率）可以取 1，2，3 分别表示 :1: 80*80, 2:40*40; 3: 20*20
         """
         self.bce_loss = nn.BCEWithLogitsLoss()
         self.bbox_ciou = BBoxCIoU()
-        self.class_num = 80
+        self.class_num = class_num
         # layer上的 obj_loss weight
         self.layer_obj_loss_weight_list = [4.0, 1.0, 0.4]
         # 缩放比例
@@ -106,7 +107,7 @@ class YoloV5Loss():
             layer_obj_loss_weight = self.layer_obj_loss_weight_list[i]
             layer_anchor = self.layer_anchors_list[i]
 
-            layer_anchor = torch.tensor(layer_anchor).float() / layer_scale
+            layer_anchor = torch.tensor(layer_anchor,device=device).float() / layer_scale
 
             # 变形 [bs,3*(5+class_num),h,w] ->  [bs,3, (5+class_num),h,w] ->  [bs,3,h,w,(5+class_num)]
             bs, channel, height, width = predict_layer.shape
@@ -148,6 +149,12 @@ class YoloV5Loss():
         return loss * batch_size, torch.cat([box_loss, obj_loss, cls_loss, loss]).detach()
 
     def build_predict_box(self, predict_data, layer_anchor):
+        """
+         对模型 输出的 xywh 进行 "消除敏感度"
+        :param predict_data:
+        :param layer_anchor:
+        :return:
+        """
         # [bs,3,h,w,4]
         box = predict_data[..., :4].clone()
 
@@ -163,6 +170,7 @@ class YoloV5Loss():
 
     def build_target(self, label_list, layer_anchor, height, width, device):
         """
+        :param device:
         :param label_list:  [bs,target_num,6]  (image,label,x,y,w,h)
         :param layer_anchor:  [3,2]
         :param height:
@@ -171,8 +179,8 @@ class YoloV5Loss():
         batch, target_num = label_list.shape[:2]
         anchor_num = len(layer_anchor)
         # 初始化目标框张量，形状为 [bs, 3, 80, 80]
-        target = np.zeros([batch, anchor_num, height, width, 85])
-        mask = np.zeros([batch, anchor_num, height, width])
+        target = torch.zeros([batch, anchor_num, height, width, self.class_num + 5], device=device)
+        mask = torch.zeros([batch, anchor_num, height, width], device=device,dtype=torch.bool)
 
         # 分别循环批次，网格，anchor_num个层
         for b in range(batch):
@@ -192,48 +200,48 @@ class YoloV5Loss():
 
                     # 两个的比例在 0.25-4 之间
                     if (0.25 < w_ratio < 4) and (0.25 < h_ratio < 4):
-                        mask[b, k, grid_y, grid_x] = True
+                        mask[b, k, grid_y, grid_x] = torch.tensor(True,device=device)
                         # 注意：类别是 one-hot 编码
-                        target[b, k, grid_y, grid_x, 5 + class_index] = 1
+                        target[b, k, grid_y, grid_x, 5 + class_index] = torch.tensor(1,device=device)
                         mod_x, mod_y = true_x - grid_x, true_y - grid_y
                         # 计算 x,y,w,h, 注意：x,y 是相对于该grid_x,grid_y坐标的偏移
-                        target[b, k, grid_y, grid_x, :4] = mod_y, mod_x, true_w, true_h
+                        target[b, k, grid_y, grid_x, :4] =torch.tensor([mod_y, mod_x, true_w, true_h],device=device)
 
                         # 匹配 网格 left,top,right,down 是否满足
                         # left
                         if mod_x < 0.5 and grid_x > 0:
-                            target[b, k, grid_y, grid_x - 1, :4] = mod_y, mod_x + 1, true_w, true_h
-                            target[b, k, grid_y, grid_x - 1, 5 + class_index] = 1
-                            mask[b, k, grid_y, grid_x - 1] = True
+                            target[b, k, grid_y, grid_x - 1, :4] =torch.tensor([mod_y, mod_x + 1, true_w, true_h],device=device)
+                            target[b, k, grid_y, grid_x - 1, 5 + class_index] = torch.tensor(1,device=device)
+                            mask[b, k, grid_y, grid_x - 1] = torch.tensor(True,device=device)
                             # top
                         if mod_y < 0.5 and grid_y > 0:
-                            target[b, k, grid_y - 1, grid_x, :4] = mod_y + 1, mod_x, true_w, true_h
-                            target[b, k, grid_y - 1, grid_x, 5 + class_index] = 1
-                            mask[b, k, grid_y - 1, grid_x] = True
+                            target[b, k, grid_y - 1, grid_x, :4] =torch.tensor([mod_y + 1, mod_x, true_w, true_h],device=device)
+                            target[b, k, grid_y - 1, grid_x, 5 + class_index] = torch.tensor(1,device=device)
+                            mask[b, k, grid_y - 1, grid_x] = torch.tensor(True,device=device)
                         # right
                         if mod_x > 0.5 and grid_x < width - 1:
-                            target[b, k, grid_y, grid_x + 1, :4] = mod_y, mod_x - 1, true_w, true_h
-                            target[b, k, grid_y, grid_x + 1, 5 + class_index] = 1
-                            mask[b, k, grid_y, grid_x + 1] = True
+                            target[b, k, grid_y, grid_x + 1, :4] =torch.tensor([ mod_y, mod_x - 1, true_w, true_h],device=device)
+                            target[b, k, grid_y, grid_x + 1, 5 + class_index] = torch.tensor(1,device=device)
+                            mask[b, k, grid_y, grid_x + 1] = torch.tensor(True,device=device)
                         # down
                         if mod_y > 0.5 and grid_y < height - 1:
-                            target[b, k, grid_y + 1, grid_x, :4] = mod_y - 1, mod_x, true_w, true_h
-                            target[b, k, grid_y + 1, grid_x, 5 + class_index] = 1
-                            mask[b, k, grid_y + 1, grid_x] = True
+                            target[b, k, grid_y + 1, grid_x, :4] =torch.tensor([mod_y - 1, mod_x, true_w, true_h],device=device)
+                            target[b, k, grid_y + 1, grid_x, 5 + class_index] = torch.tensor(1,device=device)
+                            mask[b, k, grid_y + 1, grid_x] = torch.tensor(True,device=device)
 
-        return torch.tensor(target, dtype=torch.float32,device=device), torch.tensor(mask, dtype=torch.bool,device=device)
+        return target, mask
 
 
 if __name__ == '__main__':
     labels = torch.tensor([
-        [ 45, 0.479492, 0.688771, 0.955609, 0.5955],
-        [ 45, 0.736516, 0.247188, 0.498875, 0.476417],
-        [ 50, 0.637063, 0.732938, 0.494125, 0.510583],
-        [ 45, 0.339438, 0.418896, 0.678875, 0.7815],
-        [ 49, 0.646836, 0.132552, 0.118047, 0.0969375],
-        [ 49, 0.773148, 0.129802, 0.0907344, 0.0972292],
-        [ 49, 0.668297, 0.226906, 0.131281, 0.146896],
-        [ 49, 0.642859, 0.0792187, 0.148063, 0.148062]
+        [45, 0.479492, 0.688771, 0.955609, 0.5955],
+        [45, 0.736516, 0.247188, 0.498875, 0.476417],
+        [50, 0.637063, 0.732938, 0.494125, 0.510583],
+        [45, 0.339438, 0.418896, 0.678875, 0.7815],
+        [49, 0.646836, 0.132552, 0.118047, 0.0969375],
+        [49, 0.773148, 0.129802, 0.0907344, 0.0972292],
+        [49, 0.668297, 0.226906, 0.131281, 0.146896],
+        [49, 0.642859, 0.0792187, 0.148063, 0.148062]
     ])
     labels = labels.unsqueeze(0)
     layer1 = torch.rand([1, 3 * 85, 80, 80])
