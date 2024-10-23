@@ -17,7 +17,7 @@ def preprocess_image(image_path):
     return img_data
 
 model_path="./out/s2000t.onnx"
-image_path="./out/img_T.png"
+image_path= "../object-detection/yolov5/out/img_T.png"
 
 input_data=preprocess_image(image_path)
 

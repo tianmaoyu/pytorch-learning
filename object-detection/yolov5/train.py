@@ -125,7 +125,7 @@ for epoch in range(100):
 
 
     # 是否停止--------------------------------------------------------------------
-    is_stop = train_auto_stop(eval_total_loss[3].item())
+    is_stop = train_auto_stop(-eval_total_loss[3].item())
     if is_stop:
         logger.info(f"停止训练: epoch:{epoch} 最佳loss {train_auto_stop.best} , score_list:{train_auto_stop.score_list}")
         break

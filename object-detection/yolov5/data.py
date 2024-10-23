@@ -7,14 +7,14 @@ from functorch.dim import Tensor
 from matplotlib import pyplot as plt
 from torch.utils.data import Dataset
 from torchvision.transforms import ToPILImage,functional
-
+from  tqdm import  trange,tqdm
 import utils
 
 
 class CocoDataset(Dataset):
     img_formats = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp', 'mpo']  # acceptable image suffixes
 
-    def __init__(self, image_path, label_path):
+    def __init__(self, image_path, label_path,num=10000):
         super().__init__()
 
         self.image_path = image_path
@@ -25,18 +25,34 @@ class CocoDataset(Dataset):
         if not os.path.exists(label_path):
             print(f"路径 {label_path} 不存在")
 
-        label_files = sorted(glob.glob(os.path.join(self.label_path, '*.txt')))
+        label_files = glob.glob(os.path.join(self.label_path, '*.txt'))
 
+        label_files_bar=tqdm(label_files,total=len(label_files), leave=True, colour="red",desc="原图加载")
         # 根据 label 找到对应的图片
-        for label_file in label_files:
-            file_name = os.path.basename(label_file).split(".")[0]
-            images = glob.glob(os.path.join(self.image_path, file_name + '.*'))
-            images = [x for x in images if x.split('.')[-1].lower() in CocoDataset.img_formats]
-            if len(images) < 1:
-                continue
+        for i,label_file in enumerate(label_files_bar):
 
-            self.label_list.append(label_file)
-            self.image_list.append(images[0])
+            if i> num:
+                break
+
+            # 筛选太慢
+            # file_name = os.path.basename(label_file).split(".")[0]
+            # images = glob.glob(os.path.join(self.image_path, file_name + '.*'))
+            # images = [x for x in images if x.split('.')[-1].lower() in CocoDataset.img_formats]
+            # if len(images) < 1:
+            #     continue
+            #
+            # self.label_list.append(label_file)
+            # self.image_list.append(images[0])
+
+            # 直接 jpg 文件匹配
+            file_name = os.path.basename(label_file).split(".")[0]
+            jpg_path= os.path.join(self.image_path, file_name + '.jpg')
+            if os.path.exists(jpg_path):
+                self.label_list.append(label_file)
+                self.image_list.append(jpg_path)
+            else:
+                print(f"文件 {jpg_path} 不存在")
+
 
     def __len__(self):
         return len(self.label_list)
