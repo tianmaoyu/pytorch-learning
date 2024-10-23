@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 import  torch
 from PIL import Image,ImageDraw
+from torch import Tensor, nn
+from torchvision.transforms import functional
 
 def draw_rectangle(image:Image.Image,labels)-> Image.Image:
     """
@@ -28,6 +30,19 @@ def draw_rectangle(image:Image.Image,labels)-> Image.Image:
 
     return image
 
+def draw_rectangle_xyxy(image:Image.Image,boxes)-> Image.Image:
+    """
+    画矩形
+    :param image:
+    :param labels:
+    :return:
+    """
+    draw = ImageDraw.Draw(image)
+    for box in boxes:
+        x1, y1, x2, y2=box
+        rectangle = (x1, y1, x2, y2)
+        draw.rectangle(rectangle, outline='red', width=3)
+    return image
 
 def letterbox(img:Image.Image, labels, new_shape=(640, 640),stride=32, color=(114, 114, 114)):
     """
@@ -76,3 +91,12 @@ def letterbox(img:Image.Image, labels, new_shape=(640, 640),stride=32, color=(11
 
     return img, new_labels
 
+
+def image_pad(image: Tensor,scale=32) -> Tensor:
+    # 填充到最小能被 scale 整除
+    width,height= functional.get_image_size(image)
+    pad_height = (scale - height % scale) % scale
+    pad_width = (scale - width % scale) % scale
+    # 表示在左、右,上、下、四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
+    pad_image = nn.functional.pad(image, (0, pad_width , 0, pad_height), mode='reflect')
+    return pad_image

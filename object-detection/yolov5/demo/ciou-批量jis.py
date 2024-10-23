@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from  torchvision.ops import  ciou_loss
 
 class CIoULoss(nn.Module):
     def __init__(self):
@@ -66,3 +67,25 @@ class CIoULoss(nn.Module):
         ciou = iou - (d2 / c2) - alpha * v
 
         return 1 - ciou
+
+
+
+
+if __name__ == '__main__':
+
+    boxes_1 = torch.tensor([[10, 10, 20, 15],
+                            [12, 12, 22, 22],
+                            [100, 100, 150, 140],
+                            [110, 110, 160, 160]], dtype=torch.float)
+
+    boxes_2 = torch.tensor([[10, 10, 20, 20],
+                            [12, 12, 22, 22],
+                            [100, 100, 150, 150],
+                            [110, 110, 160, 160]], dtype=torch.float)
+
+    loss= CIoULoss()
+
+    value= loss(boxes_1,boxes_2)
+
+    ciou_loss = ciou_loss.complete_box_iou_loss(boxes_1, boxes_2)
+    print(value)
