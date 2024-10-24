@@ -88,7 +88,7 @@ if __name__ == '__main__':
     image_path = "coco128/images/train2017"
     label_path = "coco128/labels/train2017"
     dataset= CocoDataset(image_path, label_path)
-    image,labels=dataset[0]
+    image,labels=dataset[2]
 
     print(labels)
 

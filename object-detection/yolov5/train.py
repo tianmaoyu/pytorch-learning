@@ -62,8 +62,8 @@ image_path = "coco128/images/train2017"
 label_path = "coco128/labels/train2017"
 train_dataset = CocoDataset(image_path, label_path)
 
-train_dataloader = DataLoader(dataset=train_dataset, batch_size=1)
-eval_dataloader = DataLoader(dataset=train_dataset, batch_size=1)
+train_dataloader = DataLoader(dataset=train_dataset, batch_size=2)
+eval_dataloader = DataLoader(dataset=train_dataset, batch_size=2)
 
 logger.info(f"训练数据: {len(train_dataloader)}  评估练数据: {len(eval_dataloader)} ")
 

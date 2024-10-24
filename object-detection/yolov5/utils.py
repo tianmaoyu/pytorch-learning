@@ -44,7 +44,7 @@ def draw_rectangle_xyxy(image:Image.Image,boxes)-> Image.Image:
         draw.rectangle(rectangle, outline='red', width=3)
     return image
 
-def letterbox(img:Image.Image, labels, new_shape=(640, 640),stride=32, color=(114, 114, 114)):
+def letterbox(img:Image.Image, labels, new_shape=(640, 640),stride=32,scaleFill=False, color=(114, 114, 114)):
     """
      调整，填充 图片
     :param img:
@@ -61,10 +61,19 @@ def letterbox(img:Image.Image, labels, new_shape=(640, 640),stride=32, color=(11
     # Scale ratio (new / old)
     min_ratio = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
 
+
     new_unpad = int(round(shape[1] * min_ratio)), int(round(shape[0] * min_ratio))
     dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
      # minimum rectangle
     dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
+
+    ratio = min_ratio, min_ratio
+
+    # 缩放到 640 * 640
+    if scaleFill:  # stretch
+        dw, dh = 0.0, 0.0
+        new_unpad = (new_shape[1], new_shape[0])
+        ratio = new_shape[1] / shape[1], new_shape[0] / shape[0]  # width, height ratios
 
     dw /= 2  # divide padding into 2 sides
     dh /= 2
@@ -82,10 +91,10 @@ def letterbox(img:Image.Image, labels, new_shape=(640, 640),stride=32, color=(11
     for label in labels:
         index, x, y, w, h = label
         # Apply scaling and padding adjustments
-        new_x = (x * width * min_ratio + left) / new_width
-        new_y = (y * height * min_ratio + top) / new_height
-        new_w = w * width * min_ratio / new_width
-        new_h = h * height * min_ratio / new_height
+        new_x = (x * width * ratio[0] + left) / new_width
+        new_y = (y * height * ratio[1] + top) / new_height
+        new_w = w * width * ratio[0] / new_width
+        new_h = h * height * ratio[1] / new_height
         new_label = [index, new_x, new_y, new_w, new_h]
         new_labels.append(new_label)
 
