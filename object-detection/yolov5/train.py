@@ -71,6 +71,8 @@ model = YoloV5(class_num=80).to(device)
 loss = YoloV5Loss(class_num=80).to(device)
 optimizer = Adam(model.parameters(), 0.001)
 
+scaler = torch.amp.GradScaler()
+
 for epoch in range(100):
 
     # 训练--------------------------------------------------------------------
@@ -85,12 +87,22 @@ for epoch in range(100):
         image, label = image.to(device), label.to(device)
 
         predict_layer_list = model(image)
-
         loss_value, loss_detail = loss(predict_layer_list, label)
 
-        optimizer.zero_grad()
         loss_value.backward()
         optimizer.step()
+        optimizer.zero_grad()
+
+        # # cuda 混合精度
+        # with torch.amp.autocast(device_type="cuda"):
+        #     predict_layer_list = model(image)
+        #     loss_value, loss_detail = loss(predict_layer_list, label)
+        #
+        # scaler.scale(loss_value).backward()
+        # scaler.step(optimizer)
+        # scaler.update()
+        # optimizer.zero_grad()
+
 
         train_total_loss += loss_detail
         # 日志
@@ -124,8 +136,8 @@ for epoch in range(100):
     logger.info(f"第epoch:{epoch} eval:{eval_total_loss.cpu().numpy()} train:{train_total_loss.cpu().numpy().tolist()}  pth: yolov5-{epoch}.pth")
 
 
-    # 是否停止--------------------------------------------------------------------
-    is_stop = train_auto_stop(-eval_total_loss[3].item())
-    if is_stop:
-        logger.info(f"停止训练: epoch:{epoch} 最佳loss {train_auto_stop.best} , score_list:{train_auto_stop.score_list}")
-        break
+    # # 是否停止--------------------------------------------------------------------
+    # is_stop = train_auto_stop(-eval_total_loss[3].item())
+    # if is_stop:
+    #     logger.info(f"停止训练: epoch:{epoch} 最佳loss {train_auto_stop.best} , score_list:{train_auto_stop.score_list}")
+    #     break

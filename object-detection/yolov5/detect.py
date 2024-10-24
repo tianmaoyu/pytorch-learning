@@ -47,8 +47,8 @@ layer_anchors_list = torch.tensor([
 ])
 layer_stride_list = torch.tensor([8, 16, 32])
 
-model_path = "./out/yolov5-52.pth"
-image_path = "./out/img_4.png"
+model_path = "./out/yolovx5-3.pth"
+image_path = "./out/000000000025.jpg"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -99,13 +99,13 @@ with torch.no_grad():
         output_list.append(output)
 
     output = torch.cat(output_list, dim=0)
-    output = output[(output[..., 4] > 0.75) & (output[..., 2] > 2) & (output[..., 3] > 2)]
+    output = output[(output[..., 4] > 0.25) & (output[..., 2] > 2) & (output[..., 3] > 2)]
     # ba x
     output = xywh2xyxy(output)
     indices = torchvision.ops.batched_nms(boxes=output[..., :4],
                                           scores=output[..., 4],
                                           idxs=output[..., 5],
-                                          iou_threshold=0.1)
+                                          iou_threshold=0.45)
     filter_data = output[indices]
     print(filter_data)
     draw_image(filter_data,image_path)

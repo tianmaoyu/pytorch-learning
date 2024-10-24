@@ -66,7 +66,7 @@ class CocoDataset(Dataset):
 
         # 填充32 倍数，和缩放 640
         image,labels=utils.letterbox(image,labels)
-
+        # 自动/255
         image= functional.to_tensor(image)
         labels = torch.tensor(labels)
 
