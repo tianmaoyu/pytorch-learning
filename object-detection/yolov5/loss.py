@@ -109,6 +109,7 @@ class BBoxCIouV2:
 
         v = (4 / torch.pi ** 2) * torch.pow(torch.atan(w2 / h2) - torch.atan(w1 / h1), 2)
         with torch.no_grad():
+            # alpha 不参与计算
             alpha = v / (v - iou + (1 + eps))
 
         # CIoU
