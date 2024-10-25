@@ -135,7 +135,6 @@ for epoch in range(100):
     torch.save(model, f"out/yolov5-{epoch}.pth")
     logger.info(f"第epoch:{epoch} eval:{eval_total_loss.cpu().numpy()} train:{train_total_loss.cpu().numpy().tolist()}  pth: yolov5-{epoch}.pth")
 
-
     # # 是否停止--------------------------------------------------------------------
     # is_stop = train_auto_stop(-eval_total_loss[3].item())
     # if is_stop:

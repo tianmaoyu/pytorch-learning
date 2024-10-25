@@ -47,7 +47,7 @@ layer_anchors_list = torch.tensor([
 ])
 layer_stride_list = torch.tensor([8, 16, 32])
 
-model_path = "./out/yolovx5-54.pth"
+model_path = "./out/yolov5-229.pth"
 image_path = "./out/img_4.png"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -67,8 +67,8 @@ with torch.no_grad():
     output_list = []
     #
     for i, layer in enumerate(layer_list):
-        layer_anchor = layer_anchors_list[i]
         layer_stride = layer_stride_list[i]
+        layer_anchor = layer_anchors_list[i]
 
         # 变形 [bs,3*(5+class_num),h,w] ->  [bs,3, (5+class_num),h,w] ->  [bs,3,h,w,(5+class_num)]
         bs, channel, height, width = layer.shape
@@ -89,6 +89,7 @@ with torch.no_grad():
 
         output = torch.zeros([bs, 3, height, width, 6], device=device)
         score, label_index = torch.max(cls, dim=4, keepdim=True)
+        # 还原到原图片大小
         output[..., 0:2] = (xy * 2.0 - 0.5 + grid_xy) * layer_stride
         output[..., 2:4] = (wh * 2.0) ** 2 * anchor_wh
         output[..., 4:5] = score
@@ -107,7 +108,7 @@ with torch.no_grad():
                                           idxs=output[..., 5],
                                           iou_threshold=0.45)
     filter_data = output[indices]
-    filter_data = filter_data[filter_data[:,5]==22.0]
+    # filter_data = filter_data[filter_data[:,5]==22.0]
     print(filter_data)
     draw_image(filter_data,image_path)
 
