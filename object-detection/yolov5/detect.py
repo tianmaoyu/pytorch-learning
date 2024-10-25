@@ -47,8 +47,8 @@ layer_anchors_list = torch.tensor([
 ])
 layer_stride_list = torch.tensor([8, 16, 32])
 
-model_path = "./out/yolovx5-3.pth"
-image_path = "./out/000000000025.jpg"
+model_path = "./out/yolovx5-54.pth"
+image_path = "./out/img_4.png"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -107,6 +107,7 @@ with torch.no_grad():
                                           idxs=output[..., 5],
                                           iou_threshold=0.45)
     filter_data = output[indices]
+    filter_data = filter_data[filter_data[:,5]==22.0]
     print(filter_data)
     draw_image(filter_data,image_path)
 

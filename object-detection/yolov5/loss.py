@@ -97,7 +97,7 @@ class YoloV5Loss(nn.Module):
     def __call__(self, predict_layer_list: List, label_list: Tensor):
 
         device = label_list.device
-        batch_size = label_list.shape[0]
+        batch_size = predict_layer_list[0].shape[0]
         box_loss = torch.zeros(1, device=device)
         cls_loss = torch.zeros(1, device=device)
         obj_loss = torch.zeros(1, device=device)
@@ -112,7 +112,7 @@ class YoloV5Loss(nn.Module):
             # 变形 [bs,3*(5+class_num),h,w] ->  [bs,3, (5+class_num),h,w] ->  [bs,3,h,w,(5+class_num)]
             bs, channel, height, width = predict_layer.shape
             predict_data = predict_layer.view(bs, 3, channel // 3, height, width).permute(0, 1, 3, 4, 2).contiguous()
-            target, mask = self.build_target(label_list, layer_anchor, height, width, device)
+            target, mask = self.build_target(predict_layer,label_list, layer_anchor)
 
             predict_obj = predict_data[..., 4]
             target_obj = torch.zeros(predict_obj.shape, device=device)
@@ -140,7 +140,7 @@ class YoloV5Loss(nn.Module):
             # 目标性损失 :正负样本都计算，并且每个layer 的权重也不一样
             obj_loss += self.bce_loss(predict_obj, target_obj) * layer_obj_loss_weight
 
-        # 总损失 三个损失 权重系数：1; 0.5 ;0.005
+        # 总损失 三个损失 权重系数：1; 0.5 ;0.05
         obj_loss = 1.0 * obj_loss
         cls_loss = 0.5 * cls_loss
         box_loss = 0.05 * box_loss
@@ -168,15 +168,15 @@ class YoloV5Loss(nn.Module):
 
         return box
 
-    def build_target(self, label_list, layer_anchor, height, width, device):
+    def build_target(self,predict_layer:Tensor, batch_label_list, layer_anchor):
         """
-        :param device:
-        :param label_list:  [bs,target_num,6]  (image,label,x,y,w,h)
+        :param predict_layer:
+        :param batch_label_list:  [bs,target_num,6]  (image,label,x,y,w,h)
         :param layer_anchor:  [3,2]
-        :param height:
-        :param width:
         """
-        batch, target_num = label_list.shape[:2]
+        device = predict_layer.device
+        batch,channel,height,width=predict_layer.shape
+
         anchor_num = len(layer_anchor)
         # 初始化目标框张量，形状为 [bs, 3, 80, 80]
         target = torch.zeros([batch, anchor_num, height, width, self.class_num + 5], device=device)
@@ -184,13 +184,20 @@ class YoloV5Loss(nn.Module):
 
         # 分别循环批次，网格，anchor_num个层
         for b in range(batch):
-            for i in range(target_num):
-                label = label_list[b, i]
-                class_index = label[0].long()
-                true_x, true_y, true_w, true_h = label[1:5]
-                # 计算对应网格的 x,y 坐标
-                grid_x = int(true_x * width)
-                grid_y = int(true_y * height)
+
+            # 筛选出 image_index =b 得图片数据
+            label_list= batch_label_list[ batch_label_list[:,0]==b]
+
+            for label in label_list:
+
+                class_index = label[1].long()
+                true_x, true_y, true_w, true_h = label[2:6]
+                # 还原到比例： 比如 特征图 80*80 ，
+                true_x=true_x * width
+                true_y=true_y * height
+                # 向下取正 得网格  x,y 坐标
+                grid_x =true_x.long()
+                grid_y = true_y.long()
 
                 for k in range(anchor_num):
                     anchor_w, anchor_h = layer_anchor[k]
@@ -203,6 +210,7 @@ class YoloV5Loss(nn.Module):
                         mask[b, k, grid_y, grid_x] = torch.tensor(True,device=device)
                         # 注意：类别是 one-hot 编码
                         target[b, k, grid_y, grid_x, 5 + class_index] = torch.tensor(1,device=device)
+                        # 相对于网格坐标得偏移
                         mod_x, mod_y = true_x - grid_x, true_y - grid_y
                         # 计算 x,y,w,h, 注意：x,y 是相对于该grid_x,grid_y坐标的偏移
                         target[b, k, grid_y, grid_x, :4] =torch.tensor([mod_y, mod_x, true_w, true_h],device=device)

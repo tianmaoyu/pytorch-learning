@@ -16,7 +16,7 @@ def draw_rectangle(image:Image.Image,labels)-> Image.Image:
     width,height= image.size[0:2]
     draw = ImageDraw.Draw(image)
     for label in labels:
-        x, y, w, h = label[1:]
+        x, y, w, h = label[2:]
         x1 = (x - w / 2) * width
         y1 = (y - h / 2) * height
         x2 = (x + w / 2) * width
@@ -89,13 +89,13 @@ def letterbox(img:Image.Image, labels, new_shape=(640, 640),stride=32,scaleFill=
     new_height, new_width = img.shape[:2]
     new_labels = []
     for label in labels:
-        index, x, y, w, h = label
+        image_index, label_index, x, y, w, h = label
         # Apply scaling and padding adjustments
         new_x = (x * width * ratio[0] + left) / new_width
         new_y = (y * height * ratio[1] + top) / new_height
         new_w = w * width * ratio[0] / new_width
         new_h = h * height * ratio[1] / new_height
-        new_label = [index, new_x, new_y, new_w, new_h]
+        new_label = [image_index, label_index, new_x, new_y, new_w, new_h]
         new_labels.append(new_label)
 
     return img, new_labels

@@ -65,9 +65,10 @@ class CocoDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
 
         # 填充32 倍数，和缩放 640
-        image,labels=utils.letterbox(image,labels)
+        image,labels=utils.letterbox(image,labels,scaleFill=True)
         # 自动/255
         image= functional.to_tensor(image)
+
         labels = torch.tensor(labels)
 
         return image, labels
@@ -78,10 +79,20 @@ class CocoDataset(Dataset):
             label_list = label_file.read().strip().splitlines()
             for line in label_list:
                 list = [float(item) for item in line.split()]
+                # 在最左边（索引0）插入一个0.0
+                list.insert(0, 1)
                 result.append(list)
 
         return result
 
+    # dataloader 批量加载时适配  label 形状不对
+    @staticmethod
+    def collate_fn(batch):
+        img_list,label_list =zip(* batch)
+        for i, label in enumerate(label_list):
+            label[:,0]=i
+
+        return  torch.stack(img_list, 0), torch.cat(label_list, 0)
 
 
 if __name__ == '__main__':
