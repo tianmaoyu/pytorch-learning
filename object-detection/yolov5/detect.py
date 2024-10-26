@@ -47,8 +47,18 @@ layer_anchors_list = torch.tensor([
 ])
 layer_stride_list = torch.tensor([8, 16, 32])
 
-model_path = "./out/yolov5-229.pth"
-image_path = "./out/img_4.png"
+names= [ 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+         'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+         'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+         'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+         'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+         'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+         'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+         'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+         'hair drier', 'toothbrush' ]
+
+model_path = "./out/yolov5-719.pth"
+image_path = "./out/000000000042.jpg"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -83,24 +93,36 @@ with torch.no_grad():
         anchor_wh = layer_anchor.unsqueeze(0).unsqueeze(2).unsqueeze(3)
 
         data = torch.sigmoid(data)
+
+        # # obj_cof 置信度过滤
+        # data=data[data [..., 4]>0.01]
+        # print(data.shape)
+        # if data.shape[0]==0:
+        #     print("没有.....")
+        #     break
+
         xy = data[..., :2]
         wh = data[..., 2:4]
-        cls = data[..., 5:]
+        obj_conf =data [..., 4:5]
+        cls =data[..., 5:] * obj_conf
 
-        output = torch.zeros([bs, 3, height, width, 6], device=device)
+        output = torch.zeros([bs, 3, height, width, 7], device=device)
         score, label_index = torch.max(cls, dim=4, keepdim=True)
         # 还原到原图片大小
         output[..., 0:2] = (xy * 2.0 - 0.5 + grid_xy) * layer_stride
         output[..., 2:4] = (wh * 2.0) ** 2 * anchor_wh
         output[..., 4:5] = score
         output[..., 5:6] = label_index
+        output[..., 6:6] = obj_conf
 
         # [bs,3,h,w,6] -> [bs,-1,6] 因为 检测时 bs=1  因为 batched_nms
-        output = output.view(-1, 6)
+        output = output.view(-1, 7)
         output_list.append(output)
 
     output = torch.cat(output_list, dim=0)
-    output = output[(output[..., 4] > 0.25) & (output[..., 2] > 2) & (output[..., 3] > 2)]
+    # output = output[(output[..., 4] > 0.01) & (output[..., 2] > 2) & (output[..., 3] > 2)]
+    output = output[(output[..., 4] > 0.01)]
+
     # ba x
     output = xywh2xyxy(output)
     indices = torchvision.ops.batched_nms(boxes=output[..., :4],
@@ -108,8 +130,9 @@ with torch.no_grad():
                                           idxs=output[..., 5],
                                           iou_threshold=0.45)
     filter_data = output[indices]
-    # filter_data = filter_data[filter_data[:,5]==22.0]
-    print(filter_data)
+    for filter in filter_data:
+        print(f"index:{filter[5]}  score:{filter[4]}  name {names[int(filter[5])]}")
+    print(filter_data.numpy().tolist())
     draw_image(filter_data,image_path)
 
 
