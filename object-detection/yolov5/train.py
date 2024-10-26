@@ -60,7 +60,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 image_path = "coco128/images/train2017"
 label_path = "coco128/labels/train2017"
-train_dataset = CocoDataset(image_path, label_path)
+train_dataset = CocoDataset(image_path, label_path,scaleFill=True)
 
 train_dataloader = DataLoader(dataset=train_dataset, batch_size=2, collate_fn= CocoDataset.collate_fn)
 eval_dataloader = DataLoader(dataset=train_dataset, batch_size=2, collate_fn= CocoDataset.collate_fn)
@@ -128,7 +128,7 @@ for epoch in range(100):
 
             eval_total_loss += loss_detail
             # 日志
-            box_loss, obj_loss, cls_loss, yolo_loss = train_total_loss.cpu().numpy()
+            box_loss, obj_loss, cls_loss, yolo_loss = eval_total_loss.cpu().numpy().tolist()
             eval_bar.set_postfix(yolo_loss=yolo_loss, box_loss=box_loss, obj_loss=obj_loss, cls_loss=cls_loss)
 
     # 保存模型--------------------------------------------------------------------

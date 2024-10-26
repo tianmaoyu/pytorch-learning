@@ -8,18 +8,7 @@ from torchvision.transforms import ToTensor
 import utils
 
 
-def xywh2xyxy(data: Tensor):
-    temp = data.clone()
-    x1 = temp[..., 0] - temp[..., 2] / 2  # x1 = center_x - width / 2
-    y1 = temp[..., 1] - temp[..., 3] / 2  # y1 = center_y - height / 2
-    x2 = temp[..., 0] + temp[..., 2] / 2  # x2 = center_x + width / 2
-    y2 = temp[..., 1] + temp[..., 3] / 2  # y2 = center_y + height / 2
 
-    data[..., 0] = x1
-    data[..., 1] = y1
-    data[..., 2] = x2
-    data[..., 3] = y2
-    return data
 
 
 def draw_image(data: Tensor, image_path):
@@ -120,7 +109,7 @@ with torch.no_grad():
     output = output[output[..., 6] > 0.01]
 
     # ba x
-    output = xywh2xyxy(output)
+    output = utils.xywh2xyxy(output)
     indices = torchvision.ops.batched_nms(boxes=output[..., :4],
                                           scores=output[..., 4],
                                           idxs=output[..., 5],

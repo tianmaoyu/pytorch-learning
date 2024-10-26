@@ -14,9 +14,9 @@ import utils
 class CocoDataset(Dataset):
     img_formats = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp', 'mpo']  # acceptable image suffixes
 
-    def __init__(self, image_path, label_path,num=10000):
+    def __init__(self, image_path, label_path,num=10000,scaleFill=False):
         super().__init__()
-
+        self.scaleFill=scaleFill
         self.image_path = image_path
         self.label_path = label_path
         self.label_list = []
@@ -65,7 +65,7 @@ class CocoDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
 
         # 填充32 倍数，和缩放 640
-        image,labels=utils.letterbox(image,labels,scaleFill=True)
+        image,labels=utils.letterbox(image,labels,scaleFill=self.scaleFill)
         # 自动/255
         image= functional.to_tensor(image)
 

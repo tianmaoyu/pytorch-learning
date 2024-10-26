@@ -109,3 +109,17 @@ def image_pad(image: Tensor,scale=32) -> Tensor:
     # 表示在左、右,上、下、四个方向 mode：指定填充模式，可以是 “constant”、“reflect” 或 “replicate”；
     pad_image = nn.functional.pad(image, (0, pad_width , 0, pad_height), mode='reflect')
     return pad_image
+
+
+def xywh2xyxy(data: Tensor):
+    temp = data.clone()
+    x1 = temp[..., 0] - temp[..., 2] / 2  # x1 = center_x - width / 2
+    y1 = temp[..., 1] - temp[..., 3] / 2  # y1 = center_y - height / 2
+    x2 = temp[..., 0] + temp[..., 2] / 2  # x2 = center_x + width / 2
+    y2 = temp[..., 1] + temp[..., 3] / 2  # y2 = center_y + height / 2
+
+    data[..., 0] = x1
+    data[..., 1] = y1
+    data[..., 2] = x2
+    data[..., 3] = y2
+    return data
