@@ -94,12 +94,6 @@ with torch.no_grad():
 
         data = torch.sigmoid(data)
 
-        # # obj_cof 置信度过滤
-        # data=data[data [..., 4]>0.01]
-        # print(data.shape)
-        # if data.shape[0]==0:
-        #     print("没有.....")
-        #     break
 
         xy = data[..., :2]
         wh = data[..., 2:4]
@@ -113,15 +107,17 @@ with torch.no_grad():
         output[..., 2:4] = (wh * 2.0) ** 2 * anchor_wh
         output[..., 4:5] = score
         output[..., 5:6] = label_index
-        output[..., 6:6] = obj_conf
+        output[..., 6:7] = obj_conf
 
         # [bs,3,h,w,6] -> [bs,-1,6] 因为 检测时 bs=1  因为 batched_nms
         output = output.view(-1, 7)
         output_list.append(output)
 
     output = torch.cat(output_list, dim=0)
+
     # output = output[(output[..., 4] > 0.01) & (output[..., 2] > 2) & (output[..., 3] > 2)]
-    output = output[(output[..., 4] > 0.01)]
+    # obj_cof 置信度过滤
+    output = output[output[..., 6] > 0.01]
 
     # ba x
     output = xywh2xyxy(output)
@@ -132,7 +128,7 @@ with torch.no_grad():
     filter_data = output[indices]
     for filter in filter_data:
         print(f"index:{filter[5]}  score:{filter[4]}  name {names[int(filter[5])]}")
-    print(filter_data.numpy().tolist())
+    print(filter_data.numpy())
     draw_image(filter_data,image_path)
 
 
