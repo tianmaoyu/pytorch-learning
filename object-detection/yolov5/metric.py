@@ -4,9 +4,9 @@ import torch
 import torchmetrics
 import torchvision
 from colorama import Fore
-from sympy.tensor.tensor import Tensor
+from torch import Tensor
 from torch.utils.data import DataLoader
-from torchmetrics.detection import MeanAveragePrecision
+
 from tqdm import tqdm
 
 import utils
@@ -24,10 +24,13 @@ layer_stride_list = torch.tensor([8, 16, 32])
 class YoloV5Metric:
 
     def __init__(self):
-        self.metric = MeanAveragePrecision(box_format="xyxy")
+        self.pred_dic_list=[]
+        self.target_dic_list=[]
 
-    def update(self, predict_layer_list: [Tensor], target,w,h):
+    def update(self,image:Tensor,label, predict_layer_list: [Tensor] ):
+
         output_list = []
+
         device = predict_layer_list[0].device
 
         for i, layer in enumerate(predict_layer_list):
@@ -80,61 +83,67 @@ class YoloV5Metric:
         output_nms = output[indices]
 
         pred_dic = self.build_pred_dic(output_nms)
-        target_dic = self.build_target_dic(target)
+        target_dic = self.build_target_dic(label, image)
 
-        self.metric(pred_dic, target_dic)
+        self.pred_dic_list.append(pred_dic)
+        self.target_dic_list.append(target_dic)
+
+
+
 
     def build_pred_dic(self, output_nms):
         """
-        preds = [{
-                        "boxes": torch.tensor([[100, 150, 200, 250], [300, 400, 500, 600]]),  # 边界框的坐标
-                        "scores": torch.tensor([0.9, 0.75]),
-                        "labels": torch.tensor([1, 2])
-                    },
-                    {
-                        "boxes": torch.tensor([[50, 75, 125, 175]]),
-                        "scores": torch.tensor([0.85]),
-                        "labels": torch.tensor([2])
-                    }]
         :param output_nms:
         :return:
+        {
+            "boxes": torch.tensor([[100, 150, 200, 250], [300, 400, 500, 600]]),  # 边界框的坐标
+            "scores": torch.tensor([0.9, 0.75]),
+            "labels": torch.tensor([1, 2])
+        }
         """
         result = []
         data = {
-            "boxes": output_nms[..., :4].long(),
+            "boxes": output_nms[..., :4],
             "scores": output_nms[..., 4].T,
             "labels": output_nms[..., 5].T.long()
         }
         result.append(data)
         return result
 
-    def build_target_dic(self, target):
+    def build_target_dic(self, label, image:Tensor):
         """
-        gt = [{
-                    "boxes": torch.tensor([[110, 140, 200, 250], [310, 410, 510, 610]]),  # 边界框的坐标
-                    "labels": torch.tensor([1, 1])
-                },
-                {
-                    "boxes": torch.tensor([[50, 75, 125, 175]]),
-                    "labels": torch.tensor([2])
-                }]
         :param target:  (image_index,label_index,x,y,w,h)
         :return:
+        {
+            "boxes": torch.tensor([[110, 140, 200, 250], [310, 410, 510, 610]]),  # 边界框的坐标
+            "labels": torch.tensor([1, 1])
+        }
         """
+        height, width = image.shape[2:]
+
         result = []
-        boxs = utils.xywh2xyxy(target[:, 2:])
+
+        label[:, 2] *= width
+        label[:, 3] *= height
+        label[:, 4] *= width
+        label[:, 5] *= height
+
+        boxs = utils.xywh2xyxy(label[:, 2:])
         data = {
-            "boxes": boxs.long(),
-            "labels": target[:, 1].T.long()
+            "boxes": boxs,
+            "labels": label[:, 1].T.long()
         }
         result.append(data)
         return  result
 
     def compute(self):
-        return self.metric.compute()
+        pass
+
+
 
     def reset(self):
-        return self.metric.reset()
+        pass
+
 
 
 if __name__ == '__main__':
@@ -165,9 +174,9 @@ if __name__ == '__main__':
             loss_value, loss_detail = loss(predict_layer_list, label)
 
             eval_total_loss += loss_detail
-            # todo bug 的修复 width,height
-            metric.update(predict_layer_list, label,image.shape[2:4])
-            metric_result = metric.compute()
+
+            metric.update(image,label,predict_layer_list)
+
             # 日志
             box_loss, obj_loss, cls_loss, yolo_loss = eval_total_loss.cpu().numpy().tolist()
             log = {
@@ -175,9 +184,14 @@ if __name__ == '__main__':
                 "box": box_loss,
                 "obj": obj_loss,
                 "cls": cls_loss,
-                "mAP": metric_result["map"].item(),
-                "mAP@50": metric_result["map_50"].item(),
-                "mar_1": metric_result["mar_1"].item(),
-                "mar_10": metric_result["mar_10"].item(),
             }
             eval_bar.set_postfix(log)
+
+    metric_result = metric.compute()
+    log = {
+        "mAP": metric_result["map"].item(),
+        "mAP@50": metric_result["map_50"].item(),
+        "mar_1": metric_result["mar_1"].item(),
+        "mar_10": metric_result["mar_10"].item(),
+    }
+    print(log)
