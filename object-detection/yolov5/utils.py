@@ -111,6 +111,7 @@ def image_pad(image: Tensor,scale=32) -> Tensor:
     return pad_image
 
 
+
 def xywh2xyxy(data: Tensor):
     temp = data.clone()
     x1 = temp[..., 0] - temp[..., 2] / 2  # x1 = center_x - width / 2

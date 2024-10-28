@@ -11,13 +11,13 @@ import utils
 
 
 
-def draw_image(data: Tensor, image_path):
-    image = PIL.Image.open(image_path)
-    boxes = data[:5, :4]
+def draw_image(data: Tensor, image):
+
+    boxes = data[:, :4]
 
     plt.figure(dpi=300)
 
-    plt.subplot(1, 2, 1)
+    plt.subplot(1, 3, 1)
     plt.imshow(image)
     plt.axis('off')
 
@@ -47,7 +47,7 @@ names= [ 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'hair drier', 'toothbrush' ]
 
 model_path = "./out/yolov5-719.pth"
-image_path = "./out/000000000042.jpg"
+image_path = "./out/000000000071.jpg"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -56,10 +56,16 @@ model = torch.load(model_path, map_location=device, weights_only=False)
 # model= torch.load(model_path,weights_only=False)
 model.eval()
 with torch.no_grad():
-    image = ToTensor()(image)
+    image_original = image.resize((640, 640))
+
+    image = ToTensor()(image_original)
     image = image.unsqueeze(dim=0)
     # 填充最小能被32整除
-    image = utils.image_pad(image, scale=32)
+
+
+    # image = utils.image_pad(image, scale=32)
+
+
     image = image.to(device)
     layer_list = model(image)
 
@@ -105,8 +111,8 @@ with torch.no_grad():
     output = torch.cat(output_list, dim=0)
 
     # output = output[(output[..., 4] > 0.01) & (output[..., 2] > 2) & (output[..., 3] > 2)]
-    # obj_cof 置信度过滤
-    output = output[output[..., 6] > 0.01]
+    # score 置信度过滤
+    output = output[output[..., 4] > 0.45]
 
     # ba x
     output = utils.xywh2xyxy(output)
@@ -117,8 +123,9 @@ with torch.no_grad():
     filter_data = output[indices]
     for filter in filter_data:
         print(f"index:{filter[5]}  score:{filter[4]}  name {names[int(filter[5])]}")
-    print(filter_data.numpy())
-    draw_image(filter_data,image_path)
+    print(filter_data.numpy().tolist())
+
+    draw_image(filter_data,image_original)
 
 
 

@@ -28,6 +28,7 @@ gt_list = [
         "labels": torch.tensor([2])
     }
 ]
+
 import torch
 from collections import defaultdict
 
@@ -65,6 +66,11 @@ for pred, gt in zip(pred_list, gt_list):
         c_pred_boxes = pred_boxes[pred_labels == c]
         c_pred_scores = pred_scores[pred_labels == c]
         c_gt_boxes = gt_boxes[gt_labels == c]
+
+        if len(c_pred_boxes) == 0 or len(c_gt_boxes) == 0:
+            # 跳过没有预测框或真实框的类别，防止出现 NaN
+            ap_per_class[c.item()].append(0)
+            continue
 
         # 按得分排序预测框
         sorted_indices = torch.argsort(c_pred_scores, descending=True)
@@ -109,3 +115,4 @@ mAP_50 = sum([sum(aps) / len(aps) for aps in ap_per_class.values()]) / len(ap_pe
 
 # 输出结果
 print(f"mAP@0.5: {mAP_50:.4f}")
+

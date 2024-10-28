@@ -6,7 +6,7 @@ import torchvision
 from colorama import Fore
 from torch import Tensor
 from torch.utils.data import DataLoader
-
+from torchmetrics.detection  import MeanAveragePrecision
 from tqdm import tqdm
 
 import utils
@@ -20,17 +20,34 @@ layer_anchors_list = torch.tensor([
 ])
 layer_stride_list = torch.tensor([8, 16, 32])
 
+# 计算 IoU
+def calculate_iou(boxA, boxB):
+    """
+
+    :param boxA:  [xyxy]
+    :param boxB:  [xyxy]
+    :return:
+    """
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+    boxAArea = (boxA[2] - boxA[0] + 1) * (boxA[3] - boxA[1] + 1)
+    boxBArea = (boxB[2] - boxB[0] + 1) * (boxB[3] - boxB[1] + 1)
+    iou = interArea / float(boxAArea + boxBArea - interArea)
+    return iou
 
 class YoloV5Metric:
 
     def __init__(self):
+        self.metric= MeanAveragePrecision()
         self.pred_dic_list=[]
         self.target_dic_list=[]
 
     def update(self,image:Tensor,label, predict_layer_list: [Tensor] ):
 
         output_list = []
-
         device = predict_layer_list[0].device
 
         for i, layer in enumerate(predict_layer_list):
@@ -88,6 +105,7 @@ class YoloV5Metric:
         self.pred_dic_list.append(pred_dic)
         self.target_dic_list.append(target_dic)
 
+        # self.metric.update([pred_dic],[target_dic])
 
 
 
@@ -101,14 +119,13 @@ class YoloV5Metric:
             "labels": torch.tensor([1, 2])
         }
         """
-        result = []
+
         data = {
             "boxes": output_nms[..., :4],
             "scores": output_nms[..., 4].T,
             "labels": output_nms[..., 5].T.long()
         }
-        result.append(data)
-        return result
+        return data
 
     def build_target_dic(self, label, image:Tensor):
         """
@@ -121,7 +138,7 @@ class YoloV5Metric:
         """
         height, width = image.shape[2:]
 
-        result = []
+
 
         label[:, 2] *= width
         label[:, 3] *= height
@@ -133,16 +150,73 @@ class YoloV5Metric:
             "boxes": boxs,
             "labels": label[:, 1].T.long()
         }
-        result.append(data)
-        return  result
+
+        return  data
 
     def compute(self):
-        pass
+        precision, recall, f1_score =self.compute_P_R_F1()
+        result_dict= self.metric(self.pred_dic_list,self.target_dic_list)
+        mAP50=result_dict["map_50"]
+
+        result=[precision,recall,f1_score,mAP50]
+        return torch.tensor(result)
+        # result= {"P":precision,"R":recall, "F1":f1_score,"mAP@50": mAP50.item() }
+        # return result
 
 
 
     def reset(self):
-        pass
+        self.pred_dic_list=[]
+        self.target_dic_list=[]
+        self.metric.reset()
+
+
+    def compute_P_R_F1(self,  iou_threshold = 0.5):
+
+        # 初始化 TP, FP, FN 计数
+        tp, fp, fn = 0, 0, 0
+
+        pred_list=self.pred_dic_list
+        gt_list=self.target_dic_list
+        # 遍历每张图片
+        for pred, gt in zip(pred_list, gt_list):
+            pred_boxes = pred["boxes"]
+            pred_scores = pred["scores"]
+            pred_labels = pred["labels"]
+
+            gt_boxes = gt["boxes"]
+            gt_labels = gt["labels"]
+
+            # 存储已匹配的真实框索引
+            matched_gt = set()
+
+            # 遍历每个预测框
+            for i, (pred_box, pred_label) in enumerate(zip(pred_boxes, pred_labels)):
+                matched = False
+                for j, (gt_box, gt_label) in enumerate(zip(gt_boxes, gt_labels)):
+
+                    if j in matched_gt:
+                        continue  # 跳过已匹配的真实框
+                    if pred_label == gt_label:
+                        iou = calculate_iou(pred_box, gt_box)
+                        if iou >= iou_threshold:
+                            matched_gt.add(j)  # 匹配成功，记录真实框索引
+                            tp += 1
+                            matched = True
+                            break
+                if not matched:
+                    fp += 1  # 没有匹配到的预测框记为 FP
+
+            # 漏掉的
+            fn += len(gt_boxes) - len(matched_gt)
+
+        # 计算精确度、召回率和 F1 得分
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0
+        f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+        return  precision,recall,f1_score
+
 
 
 
@@ -150,7 +224,8 @@ if __name__ == '__main__':
 
     image_path = "coco128/images/train2017"
     label_path = "coco128/labels/train2017"
-    dataset = CocoDataset(image_path, label_path)
+    dataset = CocoDataset(image_path, label_path,scaleFill=True)
+    # todo支持多批量评估  目前 进行 eval 性能指标评估时，只 支持  batch_size= 1 ，
     eval_dataloader = DataLoader(dataset=dataset, batch_size=1, collate_fn=CocoDataset.collate_fn)
 
     model_path = "./out/yolov5-719.pth"
@@ -164,6 +239,7 @@ if __name__ == '__main__':
     eval_bar = tqdm(eval_dataloader, total=len(eval_dataloader), leave=True, colour="green", postfix=Fore.GREEN)
     model.eval()
     eval_total_loss = torch.zeros(4).to(device)
+    metric_total_value = torch.zeros(4).to(device)
 
     with torch.no_grad():
         for step, (image, label) in enumerate(eval_bar):
@@ -176,8 +252,7 @@ if __name__ == '__main__':
             eval_total_loss += loss_detail
 
             metric.update(image,label,predict_layer_list)
-
-            # 日志
+            # 日志 平均得分
             box_loss, obj_loss, cls_loss, yolo_loss = eval_total_loss.cpu().numpy().tolist()
             log = {
                 "loss": yolo_loss,
@@ -187,11 +262,10 @@ if __name__ == '__main__':
             }
             eval_bar.set_postfix(log)
 
-    metric_result = metric.compute()
-    log = {
-        "mAP": metric_result["map"].item(),
-        "mAP@50": metric_result["map_50"].item(),
-        "mar_1": metric_result["mar_1"].item(),
-        "mar_10": metric_result["mar_10"].item(),
-    }
-    print(log)
+    metric_value = metric.compute()
+    p, r, f1, mAP05 = metric_value.numpy().tolist()
+
+    metric_log=f"P: {p} R:{r} F1:{f1} mAP50:{mAP05}"
+    print(metric_log)
+
+
