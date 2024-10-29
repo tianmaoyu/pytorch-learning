@@ -252,8 +252,7 @@ if __name__ == '__main__':
     image_path = "coco128/images/train2017"
     label_path = "coco128/labels/train2017"
     dataset = CocoDataset(image_path, label_path,scaleFill=True)
-    # todo支持多批量评估  目前 进行 eval 性能指标评估时，只 支持  batch_size= 1 ，
-    eval_dataloader = DataLoader(dataset=dataset, batch_size=1, collate_fn=CocoDataset.collate_fn)
+    eval_dataloader = DataLoader(dataset=dataset, batch_size=2, collate_fn=CocoDataset.collate_fn)
 
     model_path = "./out/yolov5-719.pth"
 
@@ -278,7 +277,7 @@ if __name__ == '__main__':
 
             eval_total_loss += loss_detail
 
-            metric.update(image,label,predict_layer_list)
+            metric.batch_update(image,label,predict_layer_list)
             # 日志 平均得分
             box_loss, obj_loss, cls_loss, yolo_loss = eval_total_loss.cpu().numpy().tolist()
             log = {

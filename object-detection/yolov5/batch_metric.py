@@ -23,7 +23,6 @@ layer_stride_list = torch.tensor([8, 16, 32])
 # 计算 IoU
 def calculate_iou(boxA, boxB):
     """
-
     :param boxA:  [xyxy]
     :param boxB:  [xyxy]
     :return:
@@ -168,8 +167,6 @@ class YoloV5Metric:
         """
         height, width = image.shape[2:]
 
-
-
         label[:, 2] *= width
         label[:, 3] *= height
         label[:, 4] *= width
@@ -192,7 +189,6 @@ class YoloV5Metric:
         return torch.tensor(result)
         # result= {"P":precision,"R":recall, "F1":f1_score,"mAP@50": mAP50.item() }
         # return result
-
 
 
     def reset(self):

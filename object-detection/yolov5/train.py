@@ -1,14 +1,16 @@
 import torch
 import torchvision
 from colorama import Fore
-from torch.optim import Adam
+from torch.optim import Adam, lr_scheduler
 from torch.utils.data import DataLoader
 from data import CocoDataset
 from net import YoloV5
 from loss import YoloV5Loss
+from metric import YoloV5Metric
 import utils
-from  tqdm import  trange,tqdm
+from tqdm import trange, tqdm
 import logging
+
 
 # 训练停止条件，连续 多少次没有增长
 class TrainStop:
@@ -53,42 +55,39 @@ def config_logger(name="train"):
 
     return logger
 
+total_epoch = 300
 logger = config_logger()
-train_auto_stop = TrainStop(count=3)
+train_auto_stop = TrainStop(count=6)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+train_dataset = CocoDataset("coco128/images/train2017", "coco128/labels/train2017", scaleFill=True)
+eval_dataset = CocoDataset("coco128/images/train2017", "coco128/labels/train2017", scaleFill=True)
 
-image_path = "coco128/images/train2017"
-label_path = "coco128/labels/train2017"
-train_dataset = CocoDataset(image_path, label_path,scaleFill=True)
-
-train_dataloader = DataLoader(dataset=train_dataset, batch_size=2, collate_fn= CocoDataset.collate_fn)
-eval_dataloader = DataLoader(dataset=train_dataset, batch_size=2, collate_fn= CocoDataset.collate_fn)
+train_dataloader = DataLoader(dataset=train_dataset, batch_size=2, collate_fn=CocoDataset.collate_fn)
+eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=2, collate_fn=CocoDataset.collate_fn)
 
 logger.info(f"训练数据: {len(train_dataloader)}  评估练数据: {len(eval_dataloader)} ")
 
 model = YoloV5(class_num=80).to(device)
 loss = YoloV5Loss(class_num=80).to(device)
-optimizer = Adam(model.parameters(), 0.001)
-
+metric = YoloV5Metric()
+optimizer = Adam(model.parameters(), 0.01)
+scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=total_epoch, eta_min=0.002)
 scaler = torch.amp.GradScaler()
 
-for epoch in range(100):
+for epoch in range(total_epoch):
 
     # 训练--------------------------------------------------------------------
     train_bar = tqdm(train_dataloader, total=len(train_dataloader), leave=True, postfix=Fore.WHITE)
     train_bar.set_description(f"[{epoch}/100]")
-
     model.train()
     train_total_loss = torch.zeros(4).to(device)
 
     for step, (image, label) in enumerate(train_bar):
-
         image, label = image.to(device), label.to(device)
 
         predict_layer_list = model(image)
         loss_value, loss_detail = loss(predict_layer_list, label)
-
         loss_value.backward()
         optimizer.step()
         optimizer.zero_grad()
@@ -103,40 +102,51 @@ for epoch in range(100):
         # scaler.update()
         # optimizer.zero_grad()
 
-
         train_total_loss += loss_detail
         # 日志
         box_loss, obj_loss, cls_loss, yolo_loss = train_total_loss.cpu().numpy()
-        train_bar.set_postfix(yolo_loss=yolo_loss, box_loss=box_loss,obj_loss=obj_loss, cls_loss=cls_loss,)
+        train_bar.set_postfix(loss=yolo_loss, box=box_loss, obj=obj_loss, cls=cls_loss, )
 
+    # 动态调整学习率
+    scheduler.step()
 
     # 验证 --------------------------------------------------------------------
-    eval_bar = tqdm(eval_dataloader, total=len(eval_dataloader), leave=True,colour="green", postfix=Fore.GREEN)
+    eval_bar = tqdm(eval_dataloader, total=len(eval_dataloader), leave=True, colour="green", postfix=Fore.GREEN)
     eval_bar.set_description(f"[{epoch}/100]")
-
     model.eval()
     eval_total_loss = torch.zeros(4).to(device)
-
     with torch.no_grad():
         for step, (image, label) in enumerate(eval_bar):
-
             image, label = image.to(device), label.to(device)
 
             predict_layer_list = model(image)
 
             loss_value, loss_detail = loss(predict_layer_list, label)
 
+            metric.batch_update(image, label, predict_layer_list)
+
             eval_total_loss += loss_detail
             # 日志
             box_loss, obj_loss, cls_loss, yolo_loss = eval_total_loss.cpu().numpy().tolist()
-            eval_bar.set_postfix(yolo_loss=yolo_loss, box_loss=box_loss, obj_loss=obj_loss, cls_loss=cls_loss)
+            eval_bar.set_postfix(loss=yolo_loss, box=box_loss, obj=obj_loss, cls=cls_loss)
+
+
+    # 性能指标
+    metric_value = metric.compute()
+    metric.reset()
+    p, r, f1, mAP05 = metric_value.cpu().numpy().tolist()
+    logger.info(f"第epoch:{epoch}  P: {p}  R:{r}  F1:{f1}  mAP50:{mAP05} ")
+
 
     # 保存模型--------------------------------------------------------------------
     torch.save(model, f"out/yolov5-{epoch}.pth")
-    logger.info(f"第epoch:{epoch} eval:{eval_total_loss.cpu().numpy()} train:{train_total_loss.cpu().numpy().tolist()}  pth: yolov5-{epoch}.pth")
+    logger.info(
+        f"第epoch:{epoch} eval:{eval_total_loss.cpu().numpy()} train:{train_total_loss.cpu().numpy().tolist()}  pth: yolov5-{epoch}.pth")
 
-    # # 是否停止--------------------------------------------------------------------
-    # is_stop = train_auto_stop(-eval_total_loss[3].item())
-    # if is_stop:
-    #     logger.info(f"停止训练: epoch:{epoch} 最佳loss {train_auto_stop.best} , score_list:{train_auto_stop.score_list}")
-    #     break
+
+    # 是否停止--------------------------------------------------------------------
+    is_stop = train_auto_stop(mAP05)
+    if is_stop:
+        logger.info(
+            f"停止训练: epoch:{epoch} 最佳loss {train_auto_stop.best} , score_list:{train_auto_stop.score_list}")
+        break
