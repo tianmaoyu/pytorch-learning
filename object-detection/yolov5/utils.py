@@ -1,3 +1,5 @@
+import logging
+
 import cv2
 import numpy as np
 import  torch
@@ -124,3 +126,48 @@ def xywh2xyxy(data: Tensor):
     data[..., 2] = x2
     data[..., 3] = y2
     return data
+
+
+
+# 训练停止条件，连续 多少次没有增长
+class TrainStop:
+    def __init__(self, count=3):
+        self.count = count
+        self.score_list = [0.0]
+        self.best = 0.0
+        self.trigger_count = 0
+
+    def __call__(self, score: float) -> bool:
+        self.score_list.append(score)
+        total = sum(self.score_list[-self.count:])
+        # 最佳分数： 最后几次平均分
+        mean = total / self.count
+        if mean > self.best:
+            self.best = mean
+
+        # 分数没有超过之前，已经 count 次，就停止
+        if self.best > score:
+            self.trigger_count += 1
+            if self.trigger_count > self.count + 1:
+                return True
+
+        return False
+
+
+def config_logger(name="train"):
+    # 设置日志的基本配置
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger("train")
+    logger.setLevel(logging.DEBUG)
+
+    # 创建一个handler，用于写入日志文件
+    file_handler = logging.FileHandler('app.log')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # # 再创建一个handler，用于输出到控制台
+    # stream_handler = logging.StreamHandler()
+    # stream_handler.setFormatter(formatter)
+    # logger.addHandler(stream_handler)
+
+    return logger

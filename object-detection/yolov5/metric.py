@@ -78,8 +78,8 @@ class YoloV5Metric:
         device = predict_layer_list[0].device
 
         for i, layer in enumerate(predict_layer_list):
-            layer_stride = layer_stride_list[i]
-            layer_anchor = layer_anchors_list[i]
+            layer_stride = layer_stride_list[i].to(device)
+            layer_anchor = layer_anchors_list[i].to(device)
 
             # 变形 [bs,3*(5+class_num),h,w] ->  [bs,3, (5+class_num),h,w] ->  [bs,3,h,w,(5+class_num)]
             bs, channel, height, width = layer.shape
@@ -89,7 +89,7 @@ class YoloV5Metric:
 
             grid_y, grid_x = torch.meshgrid(torch.arange(height), torch.arange(width), indexing="ij")
             #  [ny, nx, 2]  -> [1,1,ny,nx,2]
-            grid_xy = torch.stack([grid_x, grid_y], 2).view(1, 1, height, width, 2).float()
+            grid_xy = torch.stack([grid_x, grid_y], 2).view(1, 1, height, width, 2).float().to(device)
             # [3,2]->[1,3,1,1,2]
             anchor_wh = layer_anchor.unsqueeze(0).unsqueeze(2).unsqueeze(3)
 
@@ -182,6 +182,7 @@ class YoloV5Metric:
 
     def compute(self):
         precision, recall, f1_score =self.compute_P_R_F1()
+        #单张图片上最大 max_detection_thresholds
         result_dict= self.metric(self.pred_dic_list,self.target_dic_list)
         mAP50=result_dict["map_50"]
 
