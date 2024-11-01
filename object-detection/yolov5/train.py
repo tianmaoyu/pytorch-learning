@@ -1,3 +1,5 @@
+
+
 import numpy as np
 import torch
 import torchvision
@@ -10,7 +12,7 @@ from loss import YoloV5Loss
 from metric import YoloV5Metric
 import utils
 from tqdm import  tqdm
-
+from datetime import datetime
 
 total_epoch = 300
 logger = utils.config_logger()
@@ -63,6 +65,8 @@ for epoch in range(total_epoch):
         # 日志
         box_loss, obj_loss, cls_loss, yolo_loss = train_total_loss.cpu().numpy().round(5)
         train_bar.set_postfix(loss=yolo_loss, box=box_loss, obj=obj_loss, cls=cls_loss, )
+        # if step % 50 == 0:
+        #     print(f"{datetime.now()}  epoch={epoch}, step= {step}, loss={yolo_loss}, box={box_loss}, obj={obj_loss}, cls={cls_loss}")
 
     # 动态调整学习率
     scheduler.step()
