@@ -25,7 +25,7 @@ eval_dataset = CocoDataset("coco128/images/train2017", "coco128/labels/train2017
 train_dataloader = DataLoader(dataset=train_dataset, batch_size=2, collate_fn=CocoDataset.collate_fn)
 eval_dataloader = DataLoader(dataset=eval_dataset, batch_size=2, collate_fn=CocoDataset.collate_fn)
 
-logger.info(f"训练数据: {len(train_dataloader)}  评估练数据: {len(eval_dataloader)} ")
+logger.info(f"训练数据: {len(train_dataset)}  评估练数据: {len(eval_dataset)} ")
 
 model = YoloV5(class_num=80).to(device)
 loss = YoloV5Loss(class_num=80).to(device)
