@@ -15,7 +15,7 @@ def draw_image(data: Tensor, image):
 
     boxes = data[:, :4]
 
-    plt.figure(dpi=300)
+    plt.figure(dpi=500)
 
     plt.subplot(1, 3, 1)
     plt.imshow(image)
@@ -45,11 +45,24 @@ names= [ 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', '
          'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
          'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
          'hair drier', 'toothbrush' ]
+names = [
+    "pedestrian",
+    "people",
+    "bicycle",
+    "car",
+    "van",
+    "truck",
+    "tricycle",
+    "awning-tricycle",
+    "bus",
+    "motor"
+]
 
-model_path = "./out/yolov5-719.pth"
-image_path = "./out/000000000071.jpg"
+model_path = "./data/yolov5-105.pth"
+image_path = "./data/0000001_05499_d_0000010.jpg"
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cpu")
 
 image = Image.open(image_path).convert("RGB")
 model = torch.load(model_path, map_location=device, weights_only=False)
@@ -83,7 +96,7 @@ with torch.no_grad():
 
         grid_y, grid_x = torch.meshgrid(torch.arange(height), torch.arange(width), indexing="ij")
         #  [ny, nx, 2]  -> [1,1,ny,nx,2]
-        grid_xy = torch.stack([grid_x, grid_y], 2).view(1, 1, height, width, 2).float()
+        grid_xy = torch.stack([grid_x, grid_y], 2).view(1, 1, height, width, 2).to(device).float()
         # [3,2]->[1,3,1,1,2]
         anchor_wh = layer_anchor.unsqueeze(0).unsqueeze(2).unsqueeze(3)
 
@@ -112,7 +125,7 @@ with torch.no_grad():
 
     # output = output[(output[..., 4] > 0.01) & (output[..., 2] > 2) & (output[..., 3] > 2)]
     # score 置信度过滤
-    output = output[output[..., 4] > 0.45]
+    output = output[output[..., 4] > 0.25]
 
     # ba x
     output = utils.xywh2xyxy(output)
