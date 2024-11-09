@@ -1,7 +1,8 @@
 import PIL.Image
+import numpy as np
 import torch
 import torchvision
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from matplotlib import pyplot as plt
 from torch import Tensor
 from torchvision.transforms import ToTensor
@@ -15,14 +16,75 @@ def draw_image(data: Tensor, image):
 
     boxes = data[:, :4]
 
-    plt.figure(dpi=500)
+    plt.figure(figsize=(30,15))
 
-    plt.subplot(1, 3, 1)
+    plt.subplot(1, 2, 1)
     plt.imshow(image)
     plt.axis('off')
 
     plt.subplot(1, 2, 2)
     img_draw = utils.draw_rectangle_xyxy(image, boxes.cpu().numpy())
+    plt.imshow(img_draw)
+    plt.axis('off')
+
+    # plt.tight_layout()
+    plt.show()
+
+
+def draw_rectangle_xyxy(image, boxes, colors, names, labels):
+    draw = ImageDraw.Draw(image)
+
+    # 加载字体，这里假设你有一个字体文件，比如 Arial.ttf
+    font = ImageFont.truetype("arial.ttf",13)
+
+    for box, label in zip(boxes, labels):
+        x1, y1, x2, y2 = box
+        color = colors[label]
+        name = names[label]
+
+        # 绘制矩形框
+        draw.rectangle([x1, y1, x2, y2], outline=color, width=1)
+
+        # 添加文本
+        # 获取文本的边界框 (bbox: bounding box)
+        bbox = draw.textbbox((x1, y1), name, font=font)
+        text_width = bbox[2] - bbox[0]  # 文本宽度
+        text_height = bbox[3] - bbox[1]  # 文本高度
+        draw.rectangle([x1, y1 - text_height, x1 + text_width, y1], fill=color)
+        draw.text((x1, y1 - text_height), name, fill="black", font=font)
+
+    return image
+
+
+def draw_image(data: torch.Tensor, image):
+    # 定义颜色列表，每个类别对应一种颜色
+    colors = [
+        'red', 'green', 'blue', 'yellow', 'cyan', 'magenta',
+        'orange', 'purple', 'brown', 'lime'
+    ]
+
+    # 类别名称
+    names = [
+        "pedestrian", "people", "bicycle", "car", "van", "truck",
+        "tricycle", "awning-tricycle", "bus", "motor"
+    ]
+
+    # 提取边框和标签
+    boxes = data[:, :4].cpu().numpy()
+    scores = data[:, 4].cpu().numpy()
+    labels = data[:, 5].long().cpu().numpy()
+
+    # 创建画布
+    plt.figure(figsize=(30, 15))
+
+    # 显示原始图像
+    plt.subplot(1, 2, 1)
+    plt.imshow(image)
+    plt.axis('off')
+
+    # 绘制带有边框和标签的图像
+    plt.subplot(1, 2, 2)
+    img_draw = draw_rectangle_xyxy(image, boxes, colors, names, labels)
     plt.imshow(img_draw)
     plt.axis('off')
 
@@ -58,8 +120,8 @@ names = [
     "motor"
 ]
 
-model_path = "./data/yolov5-105.pth"
-image_path = "./data/0000001_05499_d_0000010.jpg"
+model_path = "./data/yolov5-156.pth"
+image_path = "./data/0000022_00500_d_0000005.jpg"
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = torch.device("cpu")
